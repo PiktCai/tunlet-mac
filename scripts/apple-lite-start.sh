@@ -22,21 +22,25 @@ chmod 700 "${STATE_DIR}"
 container system status >/dev/null 2>&1 || container system start
 
 if container list --all --format json | grep -q '"id":"atrust-lite"'; then
-  echo "aTrust Lite 已经在运行。请先双击“停止校园网.command”，再重新启动。"
+  echo "aTrust Lite 已经在运行。请先停止现有连接，再重新启动。"
   exit 0
 fi
 
 rm -f "${TOKEN_FILE}"
 
-server_default="${ATRUST_SERVER_DEFAULT:-https://vpn.whu.edu.cn}"
-read -r -p "校园网地址 [${server_default}]: " server
-server="${server:-${server_default}}"
+server_default="${ATRUST_SERVER_DEFAULT:-}"
+if [[ -n "${server_default}" ]]; then
+  read -r -p "aTrust 服务器 [${server_default}]: " server
+  server="${server:-${server_default}}"
+else
+  read -r -p "aTrust 服务器: " server
+fi
 read -r -p "账号: " username
 read -r -s -p "密码（输入时不会显示）: " password
 echo
 
-if [[ -z "${username}" || -z "${password}" ]]; then
-  echo "账号和密码不能为空。"
+if [[ -z "${server}" || -z "${username}" || -z "${password}" ]]; then
+  echo "服务器地址、账号和密码不能为空。"
   exit 1
 fi
 
@@ -104,7 +108,7 @@ printf '%s\n' "${response}"
 if [[ "${response}" == *'"pendingSms":true'* ]]; then
   read -r -p "短信验证码: " sms_code
   if [[ ! "${sms_code}" =~ ^[0-9]{4,8}$ ]]; then
-    echo "验证码应为 4–8 位数字。"
+    echo "验证码应为 4 至 8 位数字。"
     exit 1
   fi
   response="$(curl --fail --silent --show-error \
@@ -118,17 +122,7 @@ fi
 
 if [[ "${response}" == *'"connected":true'* ]]; then
   echo
-  echo "连接成功。FlClash 校园网出口：127.0.0.1:11080"
-  echo "正在验证武汉大学中文系网页…"
-  http_code="$(curl --silent --show-error --location \
-    --max-time 30 \
-    --socks5-hostname "${HOST_SOCKS}" \
-    --output /dev/null \
-    --write-out '%{http_code}' \
-    'https://chinese.whu.edu.cn/cont_news.jsp?urltype=news.NewsContentUrl&wbtreeid=1060&wbnewsid=34191' || true)"
-  echo "目标网页 HTTP 状态：${http_code:-连接失败}"
-  echo "请在 FlClash 中切换到“校园网”配置。"
-  echo "用完后请双击“停止校园网.command”。"
+  echo "连接成功。SOCKS5 代理：${HOST_SOCKS}"
 else
   echo
   echo "尚未连通。容器会保留，便于查看日志和继续排查。"

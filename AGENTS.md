@@ -1,7 +1,7 @@
 # 项目维护约定
 
-- 目标环境仅为 Apple Silicon macOS、Apple Container 和 FlClash。
-- 保持按需使用：脚本不得自动切换 FlClash、系统代理或用户的日常代理配置。
+- 目标环境仅为 Apple Silicon macOS 和 Apple Container。
+- 脚本只负责 aTrust 运行时，不得自动修改系统代理或第三方代理客户端。
 - 不得提交 aTrust 安装包、运行镜像、账号、密码、验证码、token、日志或 `.local/`。
 - 不得把深信服官方下载地址硬编码进脚本；构建只接受用户本地提供的 ARM64 `.deb`。
 - 保留 `HomoLand/atrust-lite-gateway` 的 MIT 版权声明和 `fake-getlogin` 的来源说明。

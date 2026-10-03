@@ -19,4 +19,4 @@ rm -f "${TOKEN_FILE}"
 if [[ "$(container list --format json 2>/dev/null)" == "[]" ]]; then
   container system stop >/dev/null 2>&1 || true
 fi
-echo "aTrust Lite 已停止。Clash 没有被修改。"
+echo "aTrust Lite 已停止。"
