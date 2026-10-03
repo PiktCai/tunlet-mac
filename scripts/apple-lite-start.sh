@@ -4,6 +4,8 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 STATE_DIR="${ROOT_DIR}/.local"
 TOKEN_FILE="${STATE_DIR}/helper-token"
+SERVER_FILE="${STATE_DIR}/server"
+USERNAME_FILE="${STATE_DIR}/username"
 CONTAINER_NAME="atrust-lite"
 IMAGE_NAME="atrust-lite-runtime:local-arm64"
 HOST_HELPER_URL="http://127.0.0.1:54680"
@@ -29,13 +31,25 @@ fi
 rm -f "${TOKEN_FILE}"
 
 server_default="${ATRUST_SERVER_DEFAULT:-}"
+if [[ -z "${server_default}" && -f "${SERVER_FILE}" ]]; then
+  IFS= read -r server_default <"${SERVER_FILE}"
+fi
 if [[ -n "${server_default}" ]]; then
   read -r -p "aTrust 服务器 [${server_default}]: " server
   server="${server:-${server_default}}"
 else
   read -r -p "aTrust 服务器: " server
 fi
-read -r -p "账号: " username
+username_default="${ATRUST_USERNAME_DEFAULT:-}"
+if [[ -z "${username_default}" && -f "${USERNAME_FILE}" ]]; then
+  IFS= read -r username_default <"${USERNAME_FILE}"
+fi
+if [[ -n "${username_default}" ]]; then
+  read -r -p "账号 [${username_default}]: " username
+  username="${username:-${username_default}}"
+else
+  read -r -p "账号: " username
+fi
 read -r -s -p "密码（输入时不会显示）: " password
 echo
 
@@ -121,6 +135,9 @@ if [[ "${response}" == *'"pendingSms":true'* ]]; then
 fi
 
 if [[ "${response}" == *'"connected":true'* ]]; then
+  printf '%s\n' "${server}" >"${SERVER_FILE}"
+  printf '%s\n' "${username}" >"${USERNAME_FILE}"
+  chmod 600 "${SERVER_FILE}" "${USERNAME_FILE}"
   echo
   echo "连接成功。SOCKS5 代理：${HOST_SOCKS}"
 else
