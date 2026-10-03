@@ -1,0 +1,65 @@
+FROM docker.io/library/rust:1-bookworm AS builder
+
+SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
+
+RUN sed -i \
+      -e 's|http://deb.debian.org/debian|https://mirrors.tuna.tsinghua.edu.cn/debian|g' \
+      -e 's|http://deb.debian.org/debian-security|https://mirrors.tuna.tsinghua.edu.cn/debian-security|g' \
+      /etc/apt/sources.list.d/debian.sources && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+      ca-certificates \
+      gawk \
+      iproute2 \
+      iptables \
+      libdbus-1-3 \
+      libgl1 \
+      libharfbuzz0b \
+      libproxy1v5 \
+      libqt5core5a \
+      libqt5dbus5 \
+      libqt5gui5 \
+      libqt5network5 \
+      libqt5widgets5 \
+      libwayland-client0 \
+      libx11-6 \
+      libxtst6 \
+      procps \
+      xz-utils && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY .local/aTrustInstaller_arm64.deb /tmp/aTrustInstaller_arm64.deb
+COPY scripts/init-atrust-runtime.sh /tmp/init-atrust-runtime.sh
+COPY scripts/build-atrust-lite-supervisor.sh /tmp/build-atrust-lite-supervisor.sh
+COPY scripts/atrust-lite-supervisor.rs /tmp/atrust-lite-supervisor.rs
+COPY scripts/fake-getlogin.c /tmp/fake-getlogin.c
+
+RUN bash /tmp/init-atrust-runtime.sh \
+      --output-root /atrust-lite-root \
+      --atrust-deb /tmp/aTrustInstaller_arm64.deb \
+      --accept-upstream-license && \
+    install -d -m 0755 /atrust-lite-root/opt/atrust-lite && \
+    install -d -m 0755 /atrust-lite-root/usr/local/lib && \
+    cc --shared -fPIC -O2 \
+      -o /atrust-lite-root/usr/local/lib/fake-getlogin.so \
+      /tmp/fake-getlogin.c && \
+    ATRUST_SUPERVISOR_TARGET_LIBDIR=aarch64-linux-gnu \
+      bash /tmp/build-atrust-lite-supervisor.sh \
+        --runtime-root /atrust-lite-root \
+        --source /tmp/atrust-lite-supervisor.rs \
+        --output /atrust-lite-root/opt/atrust-lite/atrust-lite-supervisor
+
+FROM scratch
+
+COPY --from=builder /atrust-lite-root/ /
+
+ENV SANGFOR_ROOT=/usr/share/sangfor
+ENV VPN_ROOT=/usr/share/sangfor/aTrust
+ENV VPN_RESOURCES=/usr/share/sangfor/aTrust/resources
+ENV VPN_BIN=/usr/share/sangfor/aTrust/resources/bin
+ENV LD_LIBRARY_PATH=/usr/share/sangfor/aTrust:/usr/share/sangfor/aTrust/resources/bin:/usr/share/sangfor/aTrust/resources/lib
+ENV ATRUST_HELPER_BIND=127.0.0.1
+ENV ATRUST_SOCKS_BIND=0.0.0.0
+
+WORKDIR /usr/share/sangfor/aTrust/resources/bin
+CMD ["/opt/atrust-lite/atrust-lite-supervisor", "run"]

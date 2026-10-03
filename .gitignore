@@ -1,0 +1,10 @@
+.DS_Store
+.local/
+*.deb
+*.img
+*.log
+*.tmp
+.env
+helper.env
+runtime.env
+target/
