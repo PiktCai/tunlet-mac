@@ -3,23 +3,23 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 STATE_DIR="${ROOT_DIR}/.local"
-CONTAINER_NAME="atrust-lite"
-IMAGE_NAME="atrust-lite-runtime:local-arm64"
+CONTAINER_NAME="tunlet"
+IMAGE_NAME="tunlet-runtime:local-arm64"
 DRY_RUN=0
 ASSUME_YES=0
 INCLUDE_BUILDER=0
 
 usage() {
   cat <<'USAGE'
-用法：./scripts/uninstall.sh [选项]
+Usage: ./scripts/uninstall.sh [options]
 
-删除本项目创建的容器、镜像、本地状态和遗留临时文件。
+Remove the container, image, local state, and temporary files created by Tunlet.
 
-选项：
-  --dry-run          只显示将要删除的内容
-  --yes              不再询问确认
-  --include-builder  同时删除 Apple Container 共享构建器缓存
-  -h, --help         显示帮助
+Options:
+  --dry-run          Show what would be removed
+  --yes              Skip confirmation
+  --include-builder  Also remove the shared Apple Container builder
+  -h, --help         Show this help
 USAGE
 }
 
@@ -33,7 +33,7 @@ while [[ "$#" -gt 0 ]]; do
       exit 0
       ;;
     *)
-      echo "未知选项：$1" >&2
+      echo "Unknown option: $1" >&2
       usage >&2
       exit 2
       ;;
@@ -42,33 +42,33 @@ while [[ "$#" -gt 0 ]]; do
 done
 
 [[ "$(uname -s)" == "Darwin" ]] || {
-  echo "此脚本只支持 macOS。" >&2
+  echo "This script requires macOS." >&2
   exit 1
 }
 
-echo "将清理以下内容："
-echo "  - 容器：${CONTAINER_NAME}"
-echo "  - 镜像：${IMAGE_NAME}"
-echo "  - 本地状态：${STATE_DIR}"
-echo "  - 本项目遗留在系统临时目录中的文件"
+echo "The following items will be removed:"
+echo "  - Container: ${CONTAINER_NAME}"
+echo "  - Image: ${IMAGE_NAME}"
+echo "  - Local state: ${STATE_DIR}"
+echo "  - Tunlet temporary files"
 if [[ "${INCLUDE_BUILDER}" == 1 ]]; then
-  echo "  - Apple Container 共享构建器缓存"
+  echo "  - Shared Apple Container builder cache"
   echo
-  echo "注意：共享构建器可能也被其他项目使用，删除后需要重新创建。"
+  echo "Warning: other projects may use the shared builder. It will need to be recreated."
 fi
 echo
-echo "不会卸载 Apple Container，也不会删除其他容器或镜像。"
+echo "Apple Container and unrelated containers or images will not be removed."
 
 if [[ "${DRY_RUN}" == 1 ]]; then
   echo
-  echo "当前为预览模式，没有删除任何内容。"
+  echo "Dry run only. Nothing was removed."
   exit 0
 fi
 
 if [[ "${ASSUME_YES}" != 1 ]]; then
-  read -r -p "确认继续？请输入 DELETE：" confirmation
+  read -r -p "Type DELETE to continue: " confirmation
   [[ "${confirmation}" == "DELETE" ]] || {
-    echo "已取消。"
+    echo "Cancelled."
     exit 0
   }
 fi
@@ -80,13 +80,13 @@ cleanup_temp_root() {
   [[ -d "${temp_root}" ]] || return 0
   while IFS= read -r -d '' candidate; do
     case "${candidate}" in
-      "${temp_root}"/atrust-lite.*|"${temp_root}"/atrust-lite-setup.*)
+      "${temp_root}"/tunlet.*|"${temp_root}"/tunlet-setup.*)
         rm -rf -- "${candidate}"
         ;;
     esac
   done < <(
     find "${temp_root}" -mindepth 1 -maxdepth 1 -type d \
-      \( -name 'atrust-lite.*' -o -name 'atrust-lite-setup.*' \) \
+      \( -name 'tunlet.*' -o -name 'tunlet-setup.*' \) \
       -print0 2>/dev/null
   )
 }
@@ -96,7 +96,7 @@ if command -v container >/dev/null 2>&1; then
   if ! container system status >/dev/null 2>&1; then
     if ! container system start >/dev/null; then
       container_ready=0
-      echo "Apple Container 无法启动，跳过容器和镜像清理。" >&2
+      echo "Apple Container could not start. Skipping container and image cleanup." >&2
     fi
   fi
 
@@ -114,7 +114,7 @@ if command -v container >/dev/null 2>&1; then
     fi
   fi
 else
-  echo "未找到 Apple Container，跳过容器和镜像清理。"
+  echo "Apple Container was not found. Skipping container and image cleanup."
 fi
 
 if [[ "${STATE_DIR}" == "${ROOT_DIR}/.local" ]]; then
@@ -128,4 +128,4 @@ if [[ "${temp_root}" != "/tmp" ]]; then
   cleanup_temp_root "/tmp"
 fi
 
-echo "清理完成。项目源码和 Apple Container 程序仍然保留。"
+echo "Cleanup complete. The source tree and Apple Container remain installed."

@@ -3,21 +3,21 @@ set -euo pipefail
 
 usage() {
   cat <<'USAGE'
-Usage: build-atrust-lite-supervisor.sh --output <path> [options]
+Usage: build-supervisor.sh --output <path> [options]
 
 Options:
   --runtime-root <dir>  Link against the runtime root's glibc compatibility baseline.
-  --source <path>       Rust source path. Defaults to atrust-lite-supervisor.rs beside this script.
+  --source <path>       Rust source path. Defaults to supervisor.rs beside this script.
 USAGE
 }
 
 fail() {
-  echo "build-atrust-lite-supervisor: $*" >&2
+  echo "build-supervisor: $*" >&2
   exit 1
 }
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SOURCE="${SCRIPT_DIR}/atrust-lite-supervisor.rs"
+SOURCE="${SCRIPT_DIR}/supervisor.rs"
 OUTPUT=""
 RUNTIME_ROOT=""
 
@@ -33,7 +33,7 @@ detect_target_libdir() {
   esac
 }
 
-TARGET_LIBDIR="${ATRUST_SUPERVISOR_TARGET_LIBDIR:-$(detect_target_libdir)}"
+TARGET_LIBDIR="${TUNLET_SUPERVISOR_TARGET_LIBDIR:-$(detect_target_libdir)}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -115,7 +115,7 @@ version_gt() {
 
 if [[ -n "${RUNTIME_ROOT}" ]]; then
   [[ -d "${RUNTIME_ROOT}" ]] || fail "runtime root not found: ${RUNTIME_ROOT}"
-  link_dir="$(mktemp -d "${TMPDIR:-/tmp}/atrust-supervisor-link.XXXXXX")"
+  link_dir="$(mktemp -d "${TMPDIR:-/tmp}/tunlet-supervisor-link.XXXXXX")"
   trap 'rm -rf "${link_dir}"' EXIT
 
   runtime_libc="$(find_runtime_library libc.so.6 || true)"

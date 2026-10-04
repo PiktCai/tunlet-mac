@@ -5,17 +5,17 @@ ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 usage() {
   cat <<'USAGE'
-用法：./tunlet <命令> [选项]
+Usage: ./tunlet <command> [options]
 
-命令：
-  install [安装包]  安装或重新构建运行镜像
-  start             启动并登录 aTrust
-  status            查看当前状态
-  stop              断开并停止 aTrust
-  uninstall         删除本项目的运行数据
-  help              显示帮助
+Commands:
+  install [package]  Install or rebuild the runtime image
+  start              Start Tunlet and sign in to aTrust
+  status             Show the current status
+  stop               Disconnect and stop Tunlet
+  uninstall          Remove Tunlet runtime data
+  help               Show this help
 
-示例：
+Examples:
   ./tunlet install
   ./tunlet start
   ./tunlet stop
@@ -29,45 +29,45 @@ show_status() {
   local token_file="${ROOT_DIR}/.local/helper-token"
 
   if ! command -v container >/dev/null 2>&1; then
-    echo "Apple Container：未安装"
-    echo "Tunlet：未运行"
+    echo "Apple Container: not installed"
+    echo "Tunlet: stopped"
     return 0
   fi
 
   if ! container system status >/dev/null 2>&1; then
-    echo "Apple Container：已停止"
-    echo "Tunlet：未运行"
+    echo "Apple Container: stopped"
+    echo "Tunlet: stopped"
     return 0
   fi
 
-  echo "Apple Container：运行中"
+  echo "Apple Container: running"
   all_containers="$(container list --all --format json 2>/dev/null || true)"
   running_containers="$(container list --format json 2>/dev/null || true)"
 
-  if [[ "${running_containers}" == *'"id":"atrust-lite"'* ]]; then
-    echo "Tunlet 容器：运行中"
+  if [[ "${running_containers}" == *'"id":"tunlet"'* ]]; then
+    echo "Tunlet container: running"
     if [[ -f "${token_file}" ]]; then
       response="$(curl --silent --max-time 3 \
         --header "Authorization: Bearer $(<"${token_file}")" \
         http://127.0.0.1:54680/status 2>/dev/null || true)"
       if [[ "${response}" == *'"connected":true'* ]]; then
-        echo "aTrust 隧道：已连接"
-        echo "SOCKS5：127.0.0.1:11080"
+        echo "aTrust tunnel: connected"
+        echo "SOCKS5: 127.0.0.1:11080"
       else
-        echo "aTrust 隧道：尚未连接或状态未知"
+        echo "aTrust tunnel: disconnected or unknown"
       fi
     fi
-  elif [[ "${all_containers}" == *'"id":"atrust-lite"'* ]]; then
-    echo "Tunlet 容器：已停止"
+  elif [[ "${all_containers}" == *'"id":"tunlet"'* ]]; then
+    echo "Tunlet container: stopped"
   else
-    echo "Tunlet 容器：不存在"
+    echo "Tunlet container: not found"
   fi
 
   if container image list 2>/dev/null | awk \
-    '$1 == "atrust-lite-runtime" && $2 == "local-arm64" { found = 1 } END { exit !found }'; then
-    echo "运行镜像：已安装"
+    '$1 == "tunlet-runtime" && $2 == "local-arm64" { found = 1 } END { exit !found }'; then
+    echo "Runtime image: installed"
   else
-    echo "运行镜像：未安装"
+    echo "Runtime image: not installed"
   fi
 }
 
@@ -82,24 +82,24 @@ case "${command_name}" in
     ;;
   start)
     [[ "$#" == 0 ]] || {
-      echo "start 命令不接受选项。" >&2
+      echo "The start command does not accept options." >&2
       exit 2
     }
-    exec "${ROOT_DIR}/scripts/apple-lite-start.sh"
+    exec "${ROOT_DIR}/scripts/start.sh"
     ;;
   status)
     [[ "$#" == 0 ]] || {
-      echo "status 命令不接受选项。" >&2
+      echo "The status command does not accept options." >&2
       exit 2
     }
     show_status
     ;;
   stop)
     [[ "$#" == 0 ]] || {
-      echo "stop 命令不接受选项。" >&2
+      echo "The stop command does not accept options." >&2
       exit 2
     }
-    exec "${ROOT_DIR}/scripts/apple-lite-stop.sh"
+    exec "${ROOT_DIR}/scripts/stop.sh"
     ;;
   uninstall)
     exec "${ROOT_DIR}/scripts/uninstall.sh" "$@"
@@ -108,7 +108,7 @@ case "${command_name}" in
     usage
     ;;
   *)
-    echo "未知命令：${command_name}" >&2
+    echo "Unknown command: ${command_name}" >&2
     echo >&2
     usage >&2
     exit 2

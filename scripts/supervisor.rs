@@ -16,14 +16,14 @@ use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 const DEFAULT_SDK_PATH: &str = "/usr/share/sangfor/aTrust/resources/bin/libaTrustSDK.so";
-const DEFAULT_HELPER_ENV_FILE: &str = "/root/.atrust-lite/helper.env";
-const DEFAULT_CONNECTED_SIGNAL_FILE: &str = "/root/.atrust-lite/connected.request";
-const DEFAULT_CORE_AGENT_LOG: &str = "/root/.atrust-lite/core-agent.log";
+const DEFAULT_HELPER_ENV_FILE: &str = "/root/.tunlet/helper.env";
+const DEFAULT_CONNECTED_SIGNAL_FILE: &str = "/root/.tunlet/connected.request";
+const DEFAULT_CORE_AGENT_LOG: &str = "/root/.tunlet/core-agent.log";
 const DEFAULT_SDK_API_LOG: &str = "/home/sangfor/.aTrust/logs/SdkApi.log";
 const DEFAULT_VPN_ROOT: &str = "/usr/share/sangfor/aTrust";
 const DEFAULT_VPN_BIN: &str = "/usr/share/sangfor/aTrust/resources/bin";
-const DEFAULT_SOCKS_GATE_STATE_FILE: &str = "/root/.atrust-lite/socks-gate.state";
-const DEFAULT_STATE_DIR: &str = "/root/.atrust-lite";
+const DEFAULT_SOCKS_GATE_STATE_FILE: &str = "/root/.tunlet/socks-gate.state";
+const DEFAULT_STATE_DIR: &str = "/root/.tunlet";
 const DEFAULT_CA_BUNDLE: &str = "/etc/ssl/certs/ca-certificates.crt";
 
 const AUTH_OK: c_int = 0;
@@ -137,9 +137,9 @@ impl Config {
         let mut cfg = Self {
             sdk_path: env_value("ATRUST_SDK_LIB", DEFAULT_SDK_PATH),
             server: env_value("ATRUST_SERVER", ""),
-            helper_env_file: env_value("ATRUST_HELPER_ENV_FILE", DEFAULT_HELPER_ENV_FILE),
-            bind_addr: env_value("ATRUST_HELPER_BIND", "0.0.0.0"),
-            port: env_value("ATRUST_HELPER_PORT", "54680")
+            helper_env_file: env_value("TUNLET_HELPER_ENV_FILE", DEFAULT_HELPER_ENV_FILE),
+            bind_addr: env_value("TUNLET_HELPER_BIND", "0.0.0.0"),
+            port: env_value("TUNLET_HELPER_PORT", "54680")
                 .parse()
                 .unwrap_or(54680),
             token: String::new(),
@@ -152,29 +152,29 @@ impl Config {
             ),
             vpn_root: env_value("VPN_ROOT", DEFAULT_VPN_ROOT),
             vpn_bin: env_value("VPN_BIN", DEFAULT_VPN_BIN),
-            socks_bind: env_value("ATRUST_SOCKS_BIND", "0.0.0.0"),
+            socks_bind: env_value("TUNLET_SOCKS_BIND", "0.0.0.0"),
             socks_gate_state_file: env_value(
-                "ATRUST_SOCKS_GATE_STATE_FILE",
+                "TUNLET_SOCKS_GATE_STATE_FILE",
                 DEFAULT_SOCKS_GATE_STATE_FILE,
             ),
-            socks_port: env_value("ATRUST_SOCKS_PORT", "1080")
+            socks_port: env_value("TUNLET_SOCKS_PORT", "1080")
                 .parse()
                 .unwrap_or(1080),
-            socks_max_clients: env_value("ATRUST_SOCKS_MAX_CLIENTS", "256")
+            socks_max_clients: env_value("TUNLET_SOCKS_MAX_CLIENTS", "256")
                 .parse()
                 .unwrap_or(256),
             socks_handshake_timeout_seconds: env_value(
-                "ATRUST_SOCKS_HANDSHAKE_TIMEOUT_SECONDS",
+                "TUNLET_SOCKS_HANDSHAKE_TIMEOUT_SECONDS",
                 "10",
             )
             .parse()
             .unwrap_or(10),
-            socks_io_timeout_seconds: env_value("ATRUST_SOCKS_IO_TIMEOUT_SECONDS", "120")
+            socks_io_timeout_seconds: env_value("TUNLET_SOCKS_IO_TIMEOUT_SECONDS", "120")
                 .parse()
                 .unwrap_or(120),
-            socks_fallback_dns: env_value("ATRUST_SOCKS_FALLBACK_DNS", ""),
-            socks_fallback_tls_name: env_value("ATRUST_SOCKS_FALLBACK_TLS_NAME", ""),
-            socks_fallback_domains: env_value("ATRUST_SOCKS_FALLBACK_DOMAINS", ""),
+            socks_fallback_dns: env_value("TUNLET_SOCKS_FALLBACK_DNS", ""),
+            socks_fallback_tls_name: env_value("TUNLET_SOCKS_FALLBACK_TLS_NAME", ""),
+            socks_fallback_domains: env_value("TUNLET_SOCKS_FALLBACK_DOMAINS", ""),
             sdk_api_log: env_value("ATRUST_SDK_API_LOG", DEFAULT_SDK_API_LOG),
             pending_sms_ttl_seconds: env_value("ATRUST_PENDING_SMS_TTL_SECONDS", "300")
                 .parse()
@@ -192,7 +192,7 @@ impl Config {
             health_dns_probe_host: env_value("ATRUST_HEALTH_DNS_PROBE_HOST", ""),
             health_dns_query_bin: env_value(
                 "ATRUST_HEALTH_DNS_QUERY_BIN",
-                "/opt/atrust-lite/atrust-dns-query",
+                "/opt/tunlet/atrust-dns-query",
             ),
             health_dns_upstream_host: env_value("ATRUST_HEALTH_DNS_UPSTREAM_HOST", "198.18.255.1"),
             health_dns_upstream_port: env_value("ATRUST_HEALTH_DNS_UPSTREAM_PORT", "53")
@@ -212,7 +212,7 @@ impl Config {
                 .unwrap_or(8),
         };
         cfg.load_env_file();
-        if let Ok(value) = env::var("ATRUST_HELPER_TOKEN") {
+        if let Ok(value) = env::var("TUNLET_HELPER_TOKEN") {
             if !value.is_empty() {
                 cfg.token = value;
             }
@@ -252,9 +252,9 @@ impl Config {
         match key {
             "ATRUST_SDK_LIB" => self.sdk_path = value,
             "ATRUST_SERVER" => self.server = value,
-            "ATRUST_HELPER_BIND" => self.bind_addr = value,
-            "ATRUST_HELPER_PORT" => self.port = value.parse().unwrap_or(54680),
-            "ATRUST_HELPER_TOKEN" => self.token = value,
+            "TUNLET_HELPER_BIND" => self.bind_addr = value,
+            "TUNLET_HELPER_PORT" => self.port = value.parse().unwrap_or(54680),
+            "TUNLET_HELPER_TOKEN" => self.token = value,
             "ATRUST_USERNAME" => self.username = value,
             "ATRUST_PASSWORD" => self.password = value,
             "ATRUST_DOMAIN" => self.domain = value,
@@ -262,19 +262,19 @@ impl Config {
             "VPN_ROOT" => self.vpn_root = value,
             "VPN_BIN" => self.vpn_bin = value,
             "VPN_TUN" => self.vpn_tun = value,
-            "ATRUST_SOCKS_BIND" => self.socks_bind = value,
-            "ATRUST_SOCKS_PORT" => self.socks_port = value.parse().unwrap_or(1080),
-            "ATRUST_SOCKS_GATE_STATE_FILE" => self.socks_gate_state_file = value,
-            "ATRUST_SOCKS_MAX_CLIENTS" => self.socks_max_clients = value.parse().unwrap_or(256),
-            "ATRUST_SOCKS_HANDSHAKE_TIMEOUT_SECONDS" => {
+            "TUNLET_SOCKS_BIND" => self.socks_bind = value,
+            "TUNLET_SOCKS_PORT" => self.socks_port = value.parse().unwrap_or(1080),
+            "TUNLET_SOCKS_GATE_STATE_FILE" => self.socks_gate_state_file = value,
+            "TUNLET_SOCKS_MAX_CLIENTS" => self.socks_max_clients = value.parse().unwrap_or(256),
+            "TUNLET_SOCKS_HANDSHAKE_TIMEOUT_SECONDS" => {
                 self.socks_handshake_timeout_seconds = value.parse().unwrap_or(10)
             }
-            "ATRUST_SOCKS_IO_TIMEOUT_SECONDS" => {
+            "TUNLET_SOCKS_IO_TIMEOUT_SECONDS" => {
                 self.socks_io_timeout_seconds = value.parse().unwrap_or(120)
             }
-            "ATRUST_SOCKS_FALLBACK_DNS" => self.socks_fallback_dns = value,
-            "ATRUST_SOCKS_FALLBACK_TLS_NAME" => self.socks_fallback_tls_name = value,
-            "ATRUST_SOCKS_FALLBACK_DOMAINS" => self.socks_fallback_domains = value,
+            "TUNLET_SOCKS_FALLBACK_DNS" => self.socks_fallback_dns = value,
+            "TUNLET_SOCKS_FALLBACK_TLS_NAME" => self.socks_fallback_tls_name = value,
+            "TUNLET_SOCKS_FALLBACK_DOMAINS" => self.socks_fallback_domains = value,
             "ATRUST_SDK_API_LOG" => self.sdk_api_log = value,
             "ATRUST_PENDING_SMS_TTL_SECONDS" => {
                 self.pending_sms_ttl_seconds = value.parse().unwrap_or(300)
@@ -1650,8 +1650,8 @@ impl Supervisor {
         let null = open_null();
         let mut cmd = Command::new(xtunnel);
         cmd.stdin(null)
-            .stdout(open_log("/root/.atrust-lite/xtunnel.log"))
-            .stderr(open_log("/root/.atrust-lite/xtunnel.log"))
+            .stdout(open_log("/root/.tunlet/xtunnel.log"))
+            .stderr(open_log("/root/.tunlet/xtunnel.log"))
             .env("FAKE_LOGIN", "sangfor")
             .env("LD_PRELOAD", child_ld_preload())
             .env(
@@ -1700,7 +1700,7 @@ impl Supervisor {
         {
             return "already-running";
         }
-        kill_matching_processes("/opt/atrust-lite/microsocks");
+        kill_matching_processes("/opt/tunlet/microsocks");
         kill_matching_processes("/usr/bin/microsocks");
         match SocksServer::start(
             &self.cfg.socks_bind,
@@ -1746,7 +1746,7 @@ impl Supervisor {
         if let Some(mut socks) = self.socks.take() {
             socks.stop();
         }
-        kill_matching_processes("/opt/atrust-lite/microsocks");
+        kill_matching_processes("/opt/tunlet/microsocks");
         kill_matching_processes("/usr/bin/microsocks");
         self.write_socks_gate_state("closed");
         if had_socks {
@@ -2141,7 +2141,7 @@ impl Supervisor {
             }
         };
         let _ = listener.set_nonblocking(true);
-        eprintln!("atrust lite supervisor listening on {}", bind);
+        eprintln!("Tunlet supervisor listening on {}", bind);
         while !TERMINATE.load(Ordering::SeqCst) {
             self.expire_pending_sms_if_needed();
             self.watchdog_tick_if_due();
@@ -2281,8 +2281,8 @@ fn configure_runtime_from_env() {
     let _ = fs::create_dir_all("/run");
     let state_env = format!("{}/helper.env", state_dir);
     env::set_var(
-        "ATRUST_HELPER_ENV_FILE",
-        env_value("ATRUST_HELPER_ENV_FILE", &state_env),
+        "TUNLET_HELPER_ENV_FILE",
+        env_value("TUNLET_HELPER_ENV_FILE", &state_env),
     );
     env::set_var(
         "ATRUST_CONNECTED_SIGNAL_FILE",
@@ -2292,9 +2292,9 @@ fn configure_runtime_from_env() {
         ),
     );
     env::set_var(
-        "ATRUST_SOCKS_GATE_STATE_FILE",
+        "TUNLET_SOCKS_GATE_STATE_FILE",
         env_value(
-            "ATRUST_SOCKS_GATE_STATE_FILE",
+            "TUNLET_SOCKS_GATE_STATE_FILE",
             &format!("{}/socks-gate.state", state_dir),
         ),
     );
@@ -2330,13 +2330,13 @@ fn configure_resolver_from_env() {
 
 fn configure_hosts_from_env() {
     replace_hosts_block(
-        "# atrust-lite-static-hosts begin",
-        "# atrust-lite-static-hosts end",
+        "# tunlet-static-hosts begin",
+        "# tunlet-static-hosts end",
         &env_value("ATRUST_STATIC_HOSTS", ""),
     );
     replace_hosts_block(
-        "# atrust-lite-bootstrap begin",
-        "# atrust-lite-bootstrap end",
+        "# tunlet-bootstrap begin",
+        "# tunlet-bootstrap end",
         &env_value("ATRUST_BOOTSTRAP_HOSTS", ""),
     );
 }
@@ -2773,7 +2773,7 @@ fn connect_target(
     dns_fallback: &SocksDnsFallback,
 ) -> io::Result<TcpStream> {
     let timeout = Duration::from_secs(
-        env::var("ATRUST_SOCKS_CONNECT_TIMEOUT_SECONDS")
+        env::var("TUNLET_SOCKS_CONNECT_TIMEOUT_SECONDS")
             .ok()
             .and_then(|value| value.parse::<u64>().ok())
             .filter(|value| *value > 0)
@@ -2860,7 +2860,7 @@ struct KeepaliveTarget {
 impl KeepaliveTarget {
     fn request(&self) -> String {
         format!(
-            "GET {} HTTP/1.1\r\nHost: {}\r\nUser-Agent: atrust-lite-supervisor/1\r\nAccept: */*\r\nConnection: close\r\n\r\n",
+            "GET {} HTTP/1.1\r\nHost: {}\r\nUser-Agent: tunlet-supervisor/1\r\nAccept: */*\r\nConnection: close\r\n\r\n",
             self.path, self.host_header
         )
     }

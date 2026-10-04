@@ -3,7 +3,7 @@ set -euo pipefail
 
 usage() {
   cat <<'USAGE'
-Usage: build-apple-arm64.sh <aTrustInstaller_arm64.deb> [image-tag]
+Usage: build-image.sh <aTrustInstaller_arm64.deb> [image-tag]
 
 Builds the local Tunlet arm64 image with Apple's container CLI.
 The upstream installer is copied into a temporary, git-ignored build input
@@ -12,7 +12,7 @@ USAGE
 }
 
 fail() {
-  echo "build-apple-arm64: $*" >&2
+  echo "build-image: $*" >&2
   exit 1
 }
 
@@ -24,7 +24,7 @@ fail() {
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 ATRUST_DEB="$1"
-IMAGE_TAG="${2:-atrust-lite-runtime:local-arm64}"
+IMAGE_TAG="${2:-tunlet-runtime:local-arm64}"
 LOCAL_DIR="${REPO_ROOT}/.local"
 LOCAL_DEB="${LOCAL_DIR}/aTrustInstaller_arm64.deb"
 
@@ -37,7 +37,7 @@ cp -f "${ATRUST_DEB}" "${LOCAL_DEB}"
 
 container build \
   --arch arm64 \
-  --file "${SCRIPT_DIR}/Dockerfile.apple-arm64" \
+  --file "${SCRIPT_DIR}/Containerfile" \
   --tag "${IMAGE_TAG}" \
   "${REPO_ROOT}"
 

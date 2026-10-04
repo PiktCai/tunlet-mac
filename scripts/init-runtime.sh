@@ -4,8 +4,8 @@ set -euo pipefail
 usage() {
   cat <<'USAGE'
 Usage:
-  init-atrust-runtime.sh --output-root <dir> --atrust-deb <aTrustInstaller.deb> --accept-upstream-license [--sha256 <hex>]
-  init-atrust-runtime.sh --output-root <dir> --atrust-url <https-url> --accept-upstream-license [--sha256 <hex>]
+  init-runtime.sh --output-root <dir> --atrust-deb <aTrustInstaller.deb> --accept-upstream-license [--sha256 <hex>]
+  init-runtime.sh --output-root <dir> --atrust-url <https-url> --accept-upstream-license [--sha256 <hex>]
 
 This script runs only on the user's build/install host. It extracts the
 licensed upstream aTrust .deb locally and creates a Tunlet runtime root.
@@ -18,7 +18,7 @@ USAGE
 }
 
 fail() {
-  echo "init-atrust-runtime: $*" >&2
+  echo "init-runtime: $*" >&2
   exit 1
 }
 
@@ -127,7 +127,7 @@ esac
 
 WORK_DIR="$(mktemp -d)"
 if [[ "${KEEP_TEMP}" == "1" ]]; then
-  echo "init-atrust-runtime: keeping temp directory ${WORK_DIR}" >&2
+  echo "init-runtime: keeping temp directory ${WORK_DIR}" >&2
 else
   trap 'rm -rf "${WORK_DIR}"' EXIT
 fi
@@ -350,9 +350,9 @@ install -d -m 0755 \
   "${OUTPUT_ROOT}/dev" \
   "${OUTPUT_ROOT}/etc" \
   "${OUTPUT_ROOT}/home/sangfor" \
-  "${OUTPUT_ROOT}/opt/atrust-lite" \
+  "${OUTPUT_ROOT}/opt/tunlet" \
   "${OUTPUT_ROOT}/proc" \
-  "${OUTPUT_ROOT}/root/.atrust-lite" \
+  "${OUTPUT_ROOT}/root/.tunlet" \
   "${OUTPUT_ROOT}/run" \
   "${OUTPUT_ROOT}/sys" \
   "${OUTPUT_ROOT}/tmp" \
@@ -467,7 +467,7 @@ iptables_type="$(cat /etc/iptables-type 2>/dev/null || echo legacy)"
 xtables_multi="xtables-${iptables_type}-multi"
 
 if [ -z "${ECHACK_NOWARN:-}" ]; then
-  echo "# warning: using ${iptables_type} iptables through aTrust lite hook" >&2
+  echo "# warning: using ${iptables_type} iptables through the Tunlet hook" >&2
 fi
 
 case "$name" in
@@ -567,7 +567,7 @@ verify_runtime_deps() {
   )"
   if [[ -n "${missing}" ]]; then
     cat >&2 <<EOF
-init-atrust-runtime: missing shared libraries after extraction:
+init-runtime: missing shared libraries after extraction:
 ${missing}
 
 Install the distro runtime libraries on this build host and run this script

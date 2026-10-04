@@ -18,7 +18,7 @@ printf '%s' "${GHCR_TOKEN}" | \
     --password-stdin
 
 container image tag \
-  atrust-lite-runtime:local-arm64 \
+  tunlet-runtime:local-arm64 \
   "ghcr.io/${GHCR_USER}/tunlet-mac:2.5.16.20-arm64"
 
 container image push --platform linux/arm64 \
@@ -33,7 +33,7 @@ container image pull --platform linux/arm64 \
 
 container image tag \
   "ghcr.io/${GHCR_USER}/tunlet-mac:2.5.16.20-arm64" \
-  atrust-lite-runtime:local-arm64
+  tunlet-runtime:local-arm64
 ```
 
 GitHub Container Registry 首次推送的包默认是私有的。公开前应先确认自己拥有 aTrust 二进制文件的再分发权。

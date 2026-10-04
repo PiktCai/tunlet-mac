@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-IMAGE_NAME="atrust-lite-runtime:local-arm64"
+IMAGE_NAME="tunlet-runtime:local-arm64"
 ATRUST_VERSION="2.5.16.20"
 ATRUST_URL="https://atrustcdn.sangfor.com/standard/linux/${ATRUST_VERSION}/uos/arm64/aTrustInstaller_arm64.deb"
 ATRUST_SHA256="c8c0c0add77c21abb72ae912b1ac01c2cad6cf0fc439a4b64545100153b0cf31"
@@ -14,7 +14,7 @@ BUILD_STARTED=0
 PACKAGE_PATH=""
 
 fail() {
-  echo "安装失败：$*" >&2
+  echo "Setup failed: $*" >&2
   exit 1
 }
 
@@ -27,31 +27,31 @@ cleanup() {
      [[ "$(container list --format json 2>/dev/null || true)" == "[]" ]]; then
     container system stop >/dev/null 2>&1 || true
   fi
-  if [[ -n "${TEMP_DIR}" && "${TEMP_DIR}" == "${TEMP_ROOT}/atrust-lite-setup."* ]]; then
+  if [[ -n "${TEMP_DIR}" && "${TEMP_DIR}" == "${TEMP_ROOT}/tunlet-setup."* ]]; then
     rm -rf "${TEMP_DIR}"
   fi
 }
 trap cleanup EXIT INT TERM
 
-[[ "$(uname -s)" == "Darwin" ]] || fail "只支持 macOS。"
-[[ "$(uname -m)" == "arm64" ]] || fail "只支持 Apple Silicon Mac。"
+[[ "$(uname -s)" == "Darwin" ]] || fail "macOS is required."
+[[ "$(uname -m)" == "arm64" ]] || fail "Apple silicon is required."
 
 for command_name in container curl shasum; do
   command -v "${command_name}" >/dev/null 2>&1 || {
     if [[ "${command_name}" == "container" ]]; then
-      fail "缺少 Apple Container，请先安装：https://github.com/apple/container/releases/latest"
+      fail "Apple Container is missing. Install it from https://github.com/apple/container/releases/latest"
     fi
-    fail "缺少命令：${command_name}"
+    fail "Missing command: ${command_name}"
   }
 done
 
 download_official_package() {
   local output="$1"
-  echo "正在从深信服官方 CDN 下载 aTrust ${ATRUST_VERSION} ARM64…"
+  echo "Downloading aTrust ${ATRUST_VERSION} ARM64 from Sangfor's official CDN..."
   if ! curl --fail --location --retry 3 --progress-bar \
     "${ATRUST_URL}" --output "${output}"; then
     if [[ "${http_proxy:-}${https_proxy:-}${HTTP_PROXY:-}${HTTPS_PROXY:-}" == *"127.0.0.1"* ]]; then
-      echo "本机代理不可用，尝试直连下载…"
+      echo "The configured local proxy is unavailable. Retrying without it..."
       rm -f "${output}"
       env -u http_proxy -u https_proxy -u all_proxy \
         -u HTTP_PROXY -u HTTPS_PROXY -u ALL_PROXY \
@@ -66,14 +66,14 @@ download_official_package() {
   actual_sha256="$(shasum -a 256 "${output}" | awk '{print $1}')"
   [[ "${actual_sha256}" == "${ATRUST_SHA256}" ]] || {
     rm -f "${output}"
-    fail "安装包校验失败，已删除下载文件。"
+    fail "Package checksum mismatch. The downloaded file was removed."
   }
-  echo "安装包校验通过。"
+  echo "Package checksum verified."
 }
 
 select_local_package() {
   local selected
-  read -r -p "请把 ARM64 的 .deb 或 .zip 文件拖到这里，然后按回车：" selected
+  read -r -p "Drag an ARM64 .deb or .zip file here, then press Enter: " selected
   selected="${selected#\'}"
   selected="${selected%\'}"
   selected="${selected#\"}"
@@ -84,39 +84,39 @@ select_local_package() {
 
 prepare_package() {
   local source="$1"
-  [[ -f "${source}" ]] || fail "找不到安装包：${source}"
+  [[ -f "${source}" ]] || fail "Package not found: ${source}"
 
   case "${source}" in
     *.zip|*.ZIP)
-      command -v unzip >/dev/null 2>&1 || fail "缺少 unzip，无法解压安装包。"
-      [[ -n "${TEMP_DIR}" ]] || TEMP_DIR="$(mktemp -d "${TEMP_ROOT}/atrust-lite-setup.XXXXXX")"
+      command -v unzip >/dev/null 2>&1 || fail "unzip is required for .zip packages."
+      [[ -n "${TEMP_DIR}" ]] || TEMP_DIR="$(mktemp -d "${TEMP_ROOT}/tunlet-setup.XXXXXX")"
       unzip -q "${source}" -d "${TEMP_DIR}/package"
       local extracted
       extracted="$(find "${TEMP_DIR}/package" -type f -name 'aTrustInstaller_arm64.deb' -print -quit)"
-      [[ -n "${extracted}" ]] || fail "压缩包中没有 aTrustInstaller_arm64.deb。"
+      [[ -n "${extracted}" ]] || fail "The archive does not contain aTrustInstaller_arm64.deb."
       PACKAGE_PATH="${extracted}"
       ;;
     *.deb|*.DEB)
       PACKAGE_PATH="${source}"
       ;;
     *)
-      fail "安装包必须是 ARM64 .deb，或包含该文件的 .zip。"
+      fail "The package must be an ARM64 .deb or a .zip containing it."
       ;;
   esac
 }
 
-[[ "$#" -le 1 ]] || fail "用法：./scripts/setup.sh [ARM64 安装包路径]"
+[[ "$#" -le 1 ]] || fail "Usage: ./scripts/setup.sh [ARM64 package path]"
 
 package_source="${1:-}"
 if [[ -z "${package_source}" ]]; then
-  echo "请选择安装包来源："
-  echo "  1. 从深信服官方 CDN 下载已验证版本 ${ATRUST_VERSION}"
-  echo "  2. 使用本地安装包"
-  read -r -p "选择 [1]：" choice
+  echo "Select a package source:"
+  echo "  1. Download verified version ${ATRUST_VERSION} from Sangfor's official CDN"
+  echo "  2. Use a local package"
+  read -r -p "Choice [1]: " choice
   choice="${choice:-1}"
   case "${choice}" in
     1)
-      TEMP_DIR="$(mktemp -d "${TEMP_ROOT}/atrust-lite-setup.XXXXXX")"
+      TEMP_DIR="$(mktemp -d "${TEMP_ROOT}/tunlet-setup.XXXXXX")"
       package_source="${TEMP_DIR}/aTrustInstaller_arm64.deb"
       download_official_package "${package_source}"
       ;;
@@ -124,7 +124,7 @@ if [[ -z "${package_source}" ]]; then
       package_source="$(select_local_package)"
       ;;
     *)
-      fail "无效选择。"
+      fail "Invalid choice."
       ;;
   esac
 fi
@@ -137,20 +137,20 @@ if ! container system status >/dev/null 2>&1; then
 fi
 
 if container image list | awk \
-  '$1 == "atrust-lite-runtime" && $2 == "local-arm64" { found = 1 } END { exit !found }'; then
-  read -r -p "本机已有 Tunlet 镜像，是否重新构建？[y/N] " rebuild
+  '$1 == "tunlet-runtime" && $2 == "local-arm64" { found = 1 } END { exit !found }'; then
+  read -r -p "A Tunlet image already exists. Rebuild it? [y/N] " rebuild
   case "${rebuild:-n}" in
     y|Y|yes|YES) ;;
     *)
-      echo "保留现有镜像，未做修改。"
+      echo "Kept the existing image."
       exit 0
       ;;
   esac
 fi
 
 BUILD_STARTED=1
-"${ROOT_DIR}/scripts/build-apple-arm64.sh" "${PACKAGE_PATH}"
-"${ROOT_DIR}/scripts/test-apple-arm64-runtime.sh"
+"${ROOT_DIR}/scripts/build-image.sh" "${PACKAGE_PATH}"
+"${ROOT_DIR}/scripts/test-runtime.sh"
 
 echo
-echo "安装完成。运行 ./tunlet start 即可连接。"
+echo "Setup complete. Run ./tunlet start to connect."

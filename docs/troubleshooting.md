@@ -47,7 +47,7 @@ container system status
 使用官方 ARM64 `.deb` 构建镜像：
 
 ```bash
-./scripts/build-apple-arm64.sh /path/to/aTrustInstaller_arm64.deb
+./scripts/build-image.sh /path/to/aTrustInstaller_arm64.deb
 ```
 
 ### 登录成功但无法访问目标
@@ -77,7 +77,7 @@ Apple Container 的虚拟机、基础镜像和构建缓存会占用额外空间�
 container system stop
 ```
 
-删除 `atrust-lite-runtime:local-arm64` 会释放镜像磁盘空间，但下次使用前必须重新构建或从私有仓库拉取。
+删除 `tunlet-runtime:local-arm64` 会释放镜像磁盘空间，但下次使用前必须重新构建或从私有仓库拉取。
 
 完整删除本项目的运行数据时，可以运行 `./tunlet uninstall`。该命令不会卸载 Apple Container，也不会清理其他项目的容器或镜像。
 

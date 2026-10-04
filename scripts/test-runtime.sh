@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-IMAGE_NAME="${1:-atrust-lite-runtime:local-arm64}"
+IMAGE_NAME="${1:-tunlet-runtime:local-arm64}"
 
 container run --rm \
   --cap-add NET_ADMIN \
@@ -25,4 +25,4 @@ container run --rm \
     wait "${core_pid}" 2>/dev/null || true
   '
 
-echo "Apple ARM64 runtime regression test passed"
+echo "Tunlet runtime regression test passed"

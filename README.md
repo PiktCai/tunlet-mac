@@ -85,7 +85,7 @@ SHA-256: c8c0c0add77c21abb72ae912b1ac01c2cad6cf0fc439a4b64545100153b0cf31
 ./tunlet stop
 ```
 
-遇到连接或构建问题时，参阅[原理与排障](docs/原理与排障.md)。
+遇到连接或构建问题时，参阅[原理与排障](docs/troubleshooting.md)。
 
 ## 删除
 
@@ -104,7 +104,7 @@ SHA-256: c8c0c0add77c21abb72ae912b1ac01c2cad6cf0fc439a4b64545100153b0cf31
 
 Apple Container 使用标准 OCI 镜像，可以通过 Docker Hub、GitHub Container Registry 等仓库推送和拉取。本项目不发布公共运行镜像，因为其中包含 aTrust 闭源文件，目前没有取得公开再分发授权。
 
-有权在自己的设备间复制镜像时，可以使用私有仓库，命令见 [镜像分发](docs/镜像分发.md)。
+有权在自己的设备间复制镜像时，可以使用私有仓库，命令见[镜像分发](docs/image-distribution.md)。
 
 ## 安全说明
 
@@ -112,6 +112,12 @@ Apple Container 使用标准 OCI 镜像，可以通过 Docker Hub、GitHub Conta
 - SOCKS5 和辅助接口只映射到本机回环地址。
 - 项目不绕过 MFA、授权或访问控制。
 - aTrust 安装包和构建结果不进入 Git 仓库。
+
+## 拓展思路
+
+Tunlet 当前只支持 Apple Silicon Mac、Apple Container 和 aTrust。它采用“容器内运行厂商 Linux 客户端，宿主机通过本地 SOCKS5 使用隧道”的结构，具备移植到其他企业 VPN 或零信任客户端的可能性，但每个目标都需要重新验证安装包架构、无界面认证、TUN 网络能力和许可条件。
+
+飞连官方提供 Linux 客户端，但公开信息还不足以判断能否直接在 Apple Container 中运行。感兴趣的开发者可以 fork 后按[移植思路](docs/porting.md)自行验证；这不是本项目的支持承诺或开发路线图。
 
 ## 来源与许可
 

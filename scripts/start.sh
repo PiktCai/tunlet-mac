@@ -6,14 +6,14 @@ STATE_DIR="${ROOT_DIR}/.local"
 TOKEN_FILE="${STATE_DIR}/helper-token"
 SERVER_FILE="${STATE_DIR}/server"
 USERNAME_FILE="${STATE_DIR}/username"
-CONTAINER_NAME="atrust-lite"
-IMAGE_NAME="atrust-lite-runtime:local-arm64"
+CONTAINER_NAME="tunlet"
+IMAGE_NAME="tunlet-runtime:local-arm64"
 HOST_HELPER_URL="http://127.0.0.1:54680"
 HOST_SOCKS="127.0.0.1:11080"
 
 for command_name in container curl openssl; do
   command -v "${command_name}" >/dev/null 2>&1 || {
-    echo "缺少命令：${command_name}"
+    echo "Missing command: ${command_name}"
     exit 1
   }
 done
@@ -23,8 +23,8 @@ chmod 700 "${STATE_DIR}"
 
 container system status >/dev/null 2>&1 || container system start
 
-if container list --all --format json | grep -q '"id":"atrust-lite"'; then
-  echo "Tunlet 已经在运行。请先停止现有连接，再重新启动。"
+if container list --all --format json | grep -q '"id":"tunlet"'; then
+  echo "Tunlet is already running. Stop it before starting a new session."
   exit 0
 fi
 
@@ -35,31 +35,31 @@ if [[ -z "${server_default}" && -f "${SERVER_FILE}" ]]; then
   IFS= read -r server_default <"${SERVER_FILE}"
 fi
 if [[ -n "${server_default}" ]]; then
-  read -r -p "aTrust 服务器 [${server_default}]: " server
+  read -r -p "aTrust server [${server_default}]: " server
   server="${server:-${server_default}}"
 else
-  read -r -p "aTrust 服务器: " server
+  read -r -p "aTrust server: " server
 fi
 username_default="${ATRUST_USERNAME_DEFAULT:-}"
 if [[ -z "${username_default}" && -f "${USERNAME_FILE}" ]]; then
   IFS= read -r username_default <"${USERNAME_FILE}"
 fi
 if [[ -n "${username_default}" ]]; then
-  read -r -p "账号 [${username_default}]: " username
+  read -r -p "Username [${username_default}]: " username
   username="${username:-${username_default}}"
 else
-  read -r -p "账号: " username
+  read -r -p "Username: " username
 fi
-read -r -s -p "密码（输入时不会显示）: " password
+read -r -s -p "Password (input hidden): " password
 echo
 
 if [[ -z "${server}" || -z "${username}" || -z "${password}" ]]; then
-  echo "服务器地址、账号和密码不能为空。"
+  echo "Server, username, and password are required."
   exit 1
 fi
 
 helper_token="$(openssl rand -hex 24)"
-secret_dir="$(mktemp -d "${TMPDIR:-/tmp}/atrust-lite.XXXXXX")"
+secret_dir="$(mktemp -d "${TMPDIR:-/tmp}/tunlet.XXXXXX")"
 cleanup_secret() {
   rm -f "${secret_dir}/helper.env"
   rmdir "${secret_dir}" 2>/dev/null || true
@@ -71,18 +71,18 @@ umask 077
   printf 'ATRUST_SERVER=%s\n' "${server}"
   printf 'ATRUST_USERNAME=%s\n' "${username}"
   printf 'ATRUST_PASSWORD=%s\n' "${password}"
-  printf 'ATRUST_HELPER_TOKEN=%s\n' "${helper_token}"
+  printf 'TUNLET_HELPER_TOKEN=%s\n' "${helper_token}"
 } >"${secret_dir}/helper.env"
 
-echo "正在启动 Tunlet…"
+echo "Starting Tunlet..."
 container run --detach --rm \
   --name "${CONTAINER_NAME}" \
   --cap-add NET_ADMIN \
   --cpus 2 \
   --memory 2G \
-  --mount "type=bind,source=${secret_dir},target=/run/atrust-secrets,readonly" \
-  --env ATRUST_HELPER_ENV_FILE=/run/atrust-secrets/helper.env \
-  --env ATRUST_HELPER_BIND=0.0.0.0 \
+  --mount "type=bind,source=${secret_dir},target=/run/tunlet-secrets,readonly" \
+  --env TUNLET_HELPER_ENV_FILE=/run/tunlet-secrets/helper.env \
+  --env TUNLET_HELPER_BIND=0.0.0.0 \
   --publish "127.0.0.1:54680:54680" \
   --publish "127.0.0.1:11080:1080" \
   "${IMAGE_NAME}" >/dev/null
@@ -99,7 +99,7 @@ for _ in $(seq 1 30); do
 done
 
 if [[ "${ready}" != 1 ]]; then
-  echo "Tunlet 没有按时启动，最近日志如下："
+  echo "Tunlet did not become ready in time. Recent logs:"
   container logs -n 80 "${CONTAINER_NAME}" 2>/dev/null || true
   container stop "${CONTAINER_NAME}" >/dev/null 2>&1 || true
   exit 1
@@ -112,7 +112,7 @@ unset password
 printf '%s\n' "${helper_token}" >"${TOKEN_FILE}"
 chmod 600 "${TOKEN_FILE}"
 
-echo "正在登录…"
+echo "Signing in..."
 response="$(curl --fail --silent --show-error \
   --request POST \
   --header "Authorization: Bearer ${helper_token}" \
@@ -120,9 +120,9 @@ response="$(curl --fail --silent --show-error \
 printf '%s\n' "${response}"
 
 if [[ "${response}" == *'"pendingSms":true'* ]]; then
-  read -r -p "短信验证码: " sms_code
+  read -r -p "SMS code: " sms_code
   if [[ ! "${sms_code}" =~ ^[0-9]{4,8}$ ]]; then
-    echo "验证码应为 4 至 8 位数字。"
+    echo "The SMS code must contain 4 to 8 digits."
     exit 1
   fi
   response="$(curl --fail --silent --show-error \
@@ -139,11 +139,11 @@ if [[ "${response}" == *'"connected":true'* ]]; then
   printf '%s\n' "${username}" >"${USERNAME_FILE}"
   chmod 600 "${SERVER_FILE}" "${USERNAME_FILE}"
   echo
-  echo "连接成功。SOCKS5 代理：${HOST_SOCKS}"
+  echo "Connected. SOCKS5 proxy: ${HOST_SOCKS}"
 else
   echo
-  echo "尚未连通。容器会保留，便于查看日志和继续排查。"
-  echo "最近日志："
+  echo "Not connected. The container remains available for troubleshooting."
+  echo "Recent logs:"
   container logs -n 60 "${CONTAINER_NAME}" 2>/dev/null || true
   exit 1
 fi

@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 TOKEN_FILE="${ROOT_DIR}/.local/helper-token"
-CONTAINER_NAME="atrust-lite"
+CONTAINER_NAME="tunlet"
 
 if [[ -f "${TOKEN_FILE}" ]]; then
   helper_token="$(cat "${TOKEN_FILE}")"
@@ -19,4 +19,4 @@ rm -f "${TOKEN_FILE}"
 if [[ "$(container list --format json 2>/dev/null)" == "[]" ]]; then
   container system stop >/dev/null 2>&1 || true
 fi
-echo "Tunlet 已停止。"
+echo "Tunlet stopped."
