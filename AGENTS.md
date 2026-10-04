@@ -16,6 +16,7 @@
 - Installation must remove package downloads, build inputs, compiler output, builder state, and build-only images that did not exist before the build.
 - Uninstall may delete only Tunlet-owned paths and resources. Shared Apple Container infrastructure requires an explicit user choice.
 - Run `bash -n tunlet install.sh scripts/*.sh` after changing shell scripts.
+- Run `./scripts/test-config.sh` after changing `tunlet.yaml` or its proxy-group structure.
 - Recheck the official package version, URL, byte size, and SHA-256 after changing setup.
 - Run the Rust supervisor unit tests on Linux after changing the supervisor.
 - Compile the credential helper and test temporary credential save, authenticated read, and exact deletion on macOS after changing it.

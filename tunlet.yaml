@@ -5,7 +5,7 @@ log-level: warning
 ipv6: false
 
 proxies:
-  - name: Tunlet
+  - name: Tunlet SOCKS
     type: socks5
     server: 127.0.0.1
     port: 11080
@@ -15,7 +15,7 @@ proxy-groups:
   - name: Tunlet
     type: select
     proxies:
-      - Tunlet
+      - Tunlet SOCKS
 
 rules:
   - MATCH,Tunlet
