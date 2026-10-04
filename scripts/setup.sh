@@ -153,4 +153,4 @@ BUILD_STARTED=1
 "${ROOT_DIR}/scripts/test-apple-arm64-runtime.sh"
 
 echo
-echo "安装完成。可以双击“启动aTrust.command”连接。"
+echo "安装完成。运行 ./atrust start 即可连接。"

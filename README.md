@@ -37,16 +37,18 @@ Intel Mac、Windows、Linux 主机和其他架构的安装包尚未验证。
 brew install container
 ```
 
-下载本仓库后，双击 `安装aTrust.command`。安装程序提供两种方式：
+下载本仓库，在终端进入项目目录后运行：
+
+```bash
+./atrust install
+```
+
+安装程序提供两种方式：
 
 - 从深信服官方 CDN 下载并校验已验证版本
 - 使用本地 ARM64 `.deb` 或包含该文件的 `.zip`
 
-安装包只用于本地构建，完成后会自动删除临时文件。也可以在终端中执行：
-
-```bash
-./scripts/setup.sh
-```
+安装包只用于本地构建，完成后会自动删除临时文件。
 
 ## 安装包从哪里获取
 
@@ -63,7 +65,7 @@ SHA-256: c8c0c0add77c21abb72ae912b1ac01c2cad6cf0fc439a4b64545100153b0cf31
 
 ## 使用
 
-双击 `启动aTrust.command`，按提示输入服务器地址、账号、密码和短信验证码。服务器地址和账号会保存在本机 `.local/` 目录，密码和验证码不会保存。
+运行 `./atrust start`，按提示输入服务器地址、账号、密码和短信验证码。服务器地址和账号会保存在本机 `.local/` 目录，密码和验证码不会保存。
 
 连接成功后，将需要访问受保护资源的程序设置为：
 
@@ -75,24 +77,25 @@ SHA-256: c8c0c0add77c21abb72ae912b1ac01c2cad6cf0fc439a4b64545100153b0cf31
 
 `atrust.yaml` 可导入兼容 Clash 配置格式的客户端。该配置使用 `MATCH` 规则，所有流量都会转发到 aTrust 出口。
 
-断开连接时双击 `停止aTrust.command`。对应的终端命令是：
+常用命令如下：
 
 ```bash
-./scripts/apple-lite-start.sh
-./scripts/apple-lite-stop.sh
+./atrust start
+./atrust status
+./atrust stop
 ```
 
 遇到连接或构建问题时，参阅[原理与排障](docs/原理与排障.md)。
 
 ## 删除
 
-双击 `卸载aTrust.command`，确认后会删除本项目的容器、镜像、本地账号记录和遗留临时文件。项目源码和 Apple Container 程序会保留，其他容器及镜像不受影响。
+运行 `./atrust uninstall`，确认后会删除本项目的容器、镜像、本地账号记录和遗留临时文件。项目源码和 Apple Container 程序会保留，其他容器及镜像不受影响。
 
 需要先查看清理范围，或同时删除 Apple Container 的共享构建器缓存时，可以使用：
 
 ```bash
-./scripts/uninstall.sh --dry-run
-./scripts/uninstall.sh --include-builder
+./atrust uninstall --dry-run
+./atrust uninstall --include-builder
 ```
 
 共享构建器可能也被其他项目使用，因此默认不会删除。

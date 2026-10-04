@@ -1,0 +1,116 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+usage() {
+  cat <<'USAGE'
+用法：./atrust <命令> [选项]
+
+命令：
+  install [安装包]  安装或重新构建运行镜像
+  start             启动并登录 aTrust
+  status            查看当前状态
+  stop              断开并停止 aTrust
+  uninstall         删除本项目的运行数据
+  help              显示帮助
+
+示例：
+  ./atrust install
+  ./atrust start
+  ./atrust stop
+USAGE
+}
+
+show_status() {
+  local all_containers
+  local running_containers
+  local response
+  local token_file="${ROOT_DIR}/.local/helper-token"
+
+  if ! command -v container >/dev/null 2>&1; then
+    echo "Apple Container：未安装"
+    echo "aTrust Lite：未运行"
+    return 0
+  fi
+
+  if ! container system status >/dev/null 2>&1; then
+    echo "Apple Container：已停止"
+    echo "aTrust Lite：未运行"
+    return 0
+  fi
+
+  echo "Apple Container：运行中"
+  all_containers="$(container list --all --format json 2>/dev/null || true)"
+  running_containers="$(container list --format json 2>/dev/null || true)"
+
+  if [[ "${running_containers}" == *'"id":"atrust-lite"'* ]]; then
+    echo "aTrust Lite 容器：运行中"
+    if [[ -f "${token_file}" ]]; then
+      response="$(curl --silent --max-time 3 \
+        --header "Authorization: Bearer $(<"${token_file}")" \
+        http://127.0.0.1:54680/status 2>/dev/null || true)"
+      if [[ "${response}" == *'"connected":true'* ]]; then
+        echo "aTrust 隧道：已连接"
+        echo "SOCKS5：127.0.0.1:11080"
+      else
+        echo "aTrust 隧道：尚未连接或状态未知"
+      fi
+    fi
+  elif [[ "${all_containers}" == *'"id":"atrust-lite"'* ]]; then
+    echo "aTrust Lite 容器：已停止"
+  else
+    echo "aTrust Lite 容器：不存在"
+  fi
+
+  if container image list 2>/dev/null | awk \
+    '$1 == "atrust-lite-runtime" && $2 == "local-arm64" { found = 1 } END { exit !found }'; then
+    echo "运行镜像：已安装"
+  else
+    echo "运行镜像：未安装"
+  fi
+}
+
+command_name="${1:-help}"
+if [[ "$#" -gt 0 ]]; then
+  shift
+fi
+
+case "${command_name}" in
+  install)
+    exec "${ROOT_DIR}/scripts/setup.sh" "$@"
+    ;;
+  start)
+    [[ "$#" == 0 ]] || {
+      echo "start 命令不接受选项。" >&2
+      exit 2
+    }
+    exec "${ROOT_DIR}/scripts/apple-lite-start.sh"
+    ;;
+  status)
+    [[ "$#" == 0 ]] || {
+      echo "status 命令不接受选项。" >&2
+      exit 2
+    }
+    show_status
+    ;;
+  stop)
+    [[ "$#" == 0 ]] || {
+      echo "stop 命令不接受选项。" >&2
+      exit 2
+    }
+    exec "${ROOT_DIR}/scripts/apple-lite-stop.sh"
+    ;;
+  uninstall)
+    exec "${ROOT_DIR}/scripts/uninstall.sh" "$@"
+    ;;
+  help|-h|--help)
+    usage
+    ;;
+  *)
+    echo "未知命令：${command_name}" >&2
+    echo >&2
+    usage >&2
+    exit 2
+    ;;
+esac

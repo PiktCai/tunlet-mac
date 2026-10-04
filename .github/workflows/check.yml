@@ -13,7 +13,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: 检查 shell 语法
-        run: bash -n scripts/*.sh *.command
+        run: bash -n atrust scripts/*.sh
       - name: 运行 supervisor 单元测试
         run: |
           rustc --edition=2021 --test scripts/atrust-lite-supervisor.rs -o /tmp/atrust-lite-tests
