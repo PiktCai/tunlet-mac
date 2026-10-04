@@ -5,7 +5,7 @@ usage() {
   cat <<'USAGE'
 Usage: build-apple-arm64.sh <aTrustInstaller_arm64.deb> [image-tag]
 
-Builds the local aTrust Lite arm64 image with Apple's container CLI.
+Builds the local Tunlet arm64 image with Apple's container CLI.
 The upstream installer is copied into a temporary, git-ignored build input
 directory and removed after the build finishes.
 USAGE

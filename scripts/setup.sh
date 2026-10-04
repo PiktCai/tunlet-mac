@@ -138,7 +138,7 @@ fi
 
 if container image list | awk \
   '$1 == "atrust-lite-runtime" && $2 == "local-arm64" { found = 1 } END { exit !found }'; then
-  read -r -p "本机已有 aTrust Lite 镜像，是否重新构建？[y/N] " rebuild
+  read -r -p "本机已有 Tunlet 镜像，是否重新构建？[y/N] " rebuild
   case "${rebuild:-n}" in
     y|Y|yes|YES) ;;
     *)
@@ -153,4 +153,4 @@ BUILD_STARTED=1
 "${ROOT_DIR}/scripts/test-apple-arm64-runtime.sh"
 
 echo
-echo "安装完成。运行 ./atrust start 即可连接。"
+echo "安装完成。运行 ./tunlet start 即可连接。"

@@ -24,7 +24,7 @@ chmod 700 "${STATE_DIR}"
 container system status >/dev/null 2>&1 || container system start
 
 if container list --all --format json | grep -q '"id":"atrust-lite"'; then
-  echo "aTrust Lite 已经在运行。请先停止现有连接，再重新启动。"
+  echo "Tunlet 已经在运行。请先停止现有连接，再重新启动。"
   exit 0
 fi
 
@@ -74,7 +74,7 @@ umask 077
   printf 'ATRUST_HELPER_TOKEN=%s\n' "${helper_token}"
 } >"${secret_dir}/helper.env"
 
-echo "正在启动 aTrust Lite…"
+echo "正在启动 Tunlet…"
 container run --detach --rm \
   --name "${CONTAINER_NAME}" \
   --cap-add NET_ADMIN \
@@ -99,7 +99,7 @@ for _ in $(seq 1 30); do
 done
 
 if [[ "${ready}" != 1 ]]; then
-  echo "aTrust Lite 没有按时启动，最近日志如下："
+  echo "Tunlet 没有按时启动，最近日志如下："
   container logs -n 80 "${CONTAINER_NAME}" 2>/dev/null || true
   container stop "${CONTAINER_NAME}" >/dev/null 2>&1 || true
   exit 1

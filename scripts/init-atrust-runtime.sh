@@ -8,7 +8,7 @@ Usage:
   init-atrust-runtime.sh --output-root <dir> --atrust-url <https-url> --accept-upstream-license [--sha256 <hex>]
 
 This script runs only on the user's build/install host. It extracts the
-licensed upstream aTrust .deb locally and creates an atrust-lite runtime root.
+licensed upstream aTrust .deb locally and creates a Tunlet runtime root.
 The project does not redistribute Sangfor aTrust binaries or prebuilt images
 containing them.
 
@@ -586,4 +586,4 @@ if [[ "${SKIP_DEPENDENCY_CHECK}" != "1" ]]; then
   verify_runtime_deps
 fi
 
-echo "created local aTrust lite runtime root: ${OUTPUT_ROOT}"
+echo "created local Tunlet runtime root: ${OUTPUT_ROOT}"

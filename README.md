@@ -1,6 +1,6 @@
-# aTrust Lite Mac
+# Tunlet
 
-在 Apple Silicon Mac 上运行精简的 aTrust。连接成功后，本机开放一个 SOCKS5 代理，可供浏览器、系统代理或其他网络工具使用。
+在 Apple Silicon Mac 上运行轻量 aTrust 隧道。连接成功后，本机开放一个 SOCKS5 代理，可供浏览器、系统代理或其他网络工具使用。
 
 > 本仓库不包含深信服 aTrust 安装包、许可证、账号、密码或预构建镜像。请自行确认所在机构允许使用相应客户端和网络服务。
 
@@ -13,7 +13,7 @@
 SOCKS5 127.0.0.1:11080
     │
     ▼
-Apple Container 中的 aTrust Lite
+Apple Container 中的 Tunlet
     │
     ▼
 aTrust 隧道 → 受保护资源
@@ -40,7 +40,7 @@ brew install container
 下载本仓库，在终端进入项目目录后运行：
 
 ```bash
-./atrust install
+./tunlet install
 ```
 
 安装程序提供两种方式：
@@ -65,7 +65,7 @@ SHA-256: c8c0c0add77c21abb72ae912b1ac01c2cad6cf0fc439a4b64545100153b0cf31
 
 ## 使用
 
-运行 `./atrust start`，按提示输入服务器地址、账号、密码和短信验证码。服务器地址和账号会保存在本机 `.local/` 目录，密码和验证码不会保存。
+运行 `./tunlet start`，按提示输入服务器地址、账号、密码和短信验证码。服务器地址和账号会保存在本机 `.local/` 目录，密码和验证码不会保存。
 
 连接成功后，将需要访问受保护资源的程序设置为：
 
@@ -75,27 +75,27 @@ SHA-256: c8c0c0add77c21abb72ae912b1ac01c2cad6cf0fc439a4b64545100153b0cf31
 端口：11080
 ```
 
-`atrust.yaml` 可导入兼容 Clash 配置格式的客户端。该配置使用 `MATCH` 规则，所有流量都会转发到 aTrust 出口。
+`tunlet.yaml` 可导入兼容 Clash 配置格式的客户端。该配置使用 `MATCH` 规则，所有流量都会转发到 aTrust 出口。
 
 常用命令如下：
 
 ```bash
-./atrust start
-./atrust status
-./atrust stop
+./tunlet start
+./tunlet status
+./tunlet stop
 ```
 
 遇到连接或构建问题时，参阅[原理与排障](docs/原理与排障.md)。
 
 ## 删除
 
-运行 `./atrust uninstall`，确认后会删除本项目的容器、镜像、本地账号记录和遗留临时文件。项目源码和 Apple Container 程序会保留，其他容器及镜像不受影响。
+运行 `./tunlet uninstall`，确认后会删除本项目的容器、镜像、本地账号记录和遗留临时文件。项目源码和 Apple Container 程序会保留，其他容器及镜像不受影响。
 
 需要先查看清理范围，或同时删除 Apple Container 的共享构建器缓存时，可以使用：
 
 ```bash
-./atrust uninstall --dry-run
-./atrust uninstall --include-builder
+./tunlet uninstall --dry-run
+./tunlet uninstall --include-builder
 ```
 
 共享构建器可能也被其他项目使用，因此默认不会删除。
