@@ -29,6 +29,8 @@ Apple Container 也可以通过 Homebrew 安装：
 brew install container
 ```
 
+不熟悉命令行，或者准备交给 AI Agent 操作，可以直接阅读[一步步使用指南](docs/getting-started.md)。
+
 ## 安装
 
 复制下面一行到终端：
@@ -41,7 +43,7 @@ brew install container
 
 安装程序可以从深信服官方 CDN 下载并校验已验证版本，也可以使用本地 ARM64 `.deb` 或包含该文件的 `.zip`。第一次构建需要一些时间；以后重复运行安装命令时，如镜像仍在，可以直接保留现有镜像。
 
-也可以手动安装：
+也可以克隆仓库后安装：
 
 ```bash
 git clone https://github.com/PiktCai/tunlet-mac.git
@@ -50,6 +52,17 @@ cd tunlet-mac
 ```
 
 重新运行 one-liner 即可更新程序。安装过程会编译一个小型钥匙串辅助程序；缺少 Swift 编译器时，隧道仍能使用，但密码需要手动输入。可运行 `xcode-select --install` 安装 Command Line Tools。
+
+只想临时使用、不安装全局命令，可以在源码目录运行：
+
+```bash
+git clone https://github.com/PiktCai/tunlet-mac.git
+cd tunlet-mac
+./tunlet setup
+./tunlet start
+```
+
+使用结束后运行 `./tunlet uninstall`，再删除源码目录。源码模式和长期安装模式使用同一个运行镜像，不建议同时使用。
 
 ### 安装包来源
 
@@ -78,7 +91,13 @@ tunlet stop
 端口：11080
 ```
 
-[tunlet.yaml](tunlet.yaml) 可导入兼容 Clash 配置格式的客户端，使用 `MATCH` 规则将全部流量转发到隧道。
+兼容 Clash 配置格式的客户端可以把下面的地址作为远程配置或订阅导入：
+
+```text
+https://raw.githubusercontent.com/PiktCai/tunlet-mac/main/tunlet.yaml
+```
+
+GitHub Raw 无法访问时，可以改用 `https://cdn.jsdelivr.net/gh/PiktCai/tunlet-mac@main/tunlet.yaml`。客户端不支持 URL 导入时，再下载 [tunlet.yaml](tunlet.yaml) 作为本地配置。该配置使用 `MATCH` 规则转发全部流量，不会和原有代理节点合并。请先连接 Tunlet，再切换到这个配置。
 
 ### 密码与 Touch ID
 

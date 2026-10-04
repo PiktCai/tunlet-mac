@@ -8,7 +8,7 @@ Tunlet 把厂商客户端放进独立的 Linux 环境，在容器内建立 TUN �
 
 - Apple Container 的镜像构建和生命周期管理
 - 容器所需的网络能力、端口映射和凭据临时传递
-- `install`、`start`、`status`、`stop` 和 `uninstall` 命令结构
+- `install`、`setup`、`start`、`status`、`stop`、`reclaim` 和 `uninstall` 命令结构
 - 宿主机应用通过本地 SOCKS5 使用远程网络的方式
 
 ## 必须重写的部分

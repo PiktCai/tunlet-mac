@@ -5,6 +5,7 @@
 - Scripts manage only the aTrust runtime. They must not modify the system proxy or third-party proxy clients.
 - The installed application lives under `~/Library/Application Support/Tunlet`; the user command lives at `~/.local/bin/tunlet`.
 - A source checkout and the installed application must use the same setup, runtime, credential, reclaim, and uninstall implementations.
+- `./tunlet setup` prepares a source checkout without installing a user command. `tunlet install` remains the persistent installed workflow.
 - `tunlet reclaim` may remove only the Tunlet container, runtime image, token, and Tunlet temporary files. It must preserve the installed command, account state, and Keychain credentials.
 - The credential service name is `io.github.piktcai.tunlet.credentials`. Passwords must never appear in command-line arguments, logs, or project files.
 - Credential reads require Touch ID by default. Automatic reads must require an explicit user choice.
@@ -20,3 +21,4 @@
 - Compile the credential helper and test temporary credential save, authenticated read, and exact deletion on macOS after changing it.
 - Run `./scripts/test-runtime.sh` after changing runtime extraction or image construction.
 - Keep the README concise, in Chinese, and aligned with actual behavior.
+- Keep `docs/getting-started.md` suitable for non-technical users and AI-assisted installation; move implementation detail to the README or troubleshooting guide.

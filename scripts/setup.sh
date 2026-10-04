@@ -14,10 +14,24 @@ STARTED_SYSTEM=0
 BUILD_STARTED=0
 BUILD_BASE_IMAGE_PRESENT=0
 PACKAGE_PATH=""
+if [[ -n "${TUNLET_INSTALL_ROOT:-}" ]]; then
+  SETUP_COMMAND="tunlet install"
+else
+  SETUP_COMMAND="./tunlet setup"
+fi
 
 fail() {
   echo "Setup failed: $*" >&2
   exit 1
+}
+
+print_completion() {
+  echo
+  if [[ -n "${TUNLET_INSTALL_ROOT:-}" ]]; then
+    echo "Setup complete. Run 'tunlet start' to connect."
+  else
+    echo "Setup complete. Run './tunlet start' to connect."
+  fi
 }
 
 cleanup() {
@@ -118,7 +132,7 @@ prepare_package() {
   esac
 }
 
-[[ "$#" -le 1 ]] || fail "Usage: tunlet install [ARM64 package path]"
+[[ "$#" -le 1 ]] || fail "Usage: ${SETUP_COMMAND} [ARM64 package path]"
 
 if ! container system status >/dev/null 2>&1; then
   container system start
@@ -132,6 +146,7 @@ if container image list | awk \
     y|Y|yes|YES) ;;
     *)
       echo "Kept the existing image."
+      print_completion
       exit 0
       ;;
   esac
@@ -170,5 +185,4 @@ BUILD_STARTED=1
 "${ROOT_DIR}/scripts/build-image.sh" "${PACKAGE_PATH}"
 "${ROOT_DIR}/scripts/test-runtime.sh"
 
-echo
-echo "Setup complete. Run 'tunlet start' to connect."
+print_completion

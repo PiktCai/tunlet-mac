@@ -9,6 +9,7 @@ Usage: tunlet <command> [options]
 
 Commands:
   install [package]  Install the command or rebuild the runtime image
+  setup [package]    Prepare a source checkout without installing the command
   start              Start Tunlet and sign in to aTrust
   status             Show the current status
   stop               Disconnect and stop Tunlet
@@ -19,6 +20,7 @@ Commands:
 
 Examples:
   tunlet install
+  ./tunlet setup
   tunlet start
   tunlet reclaim
 USAGE
@@ -86,6 +88,15 @@ case "${command_name}" in
       exec "${ROOT_DIR}/scripts/setup.sh" "$@"
     fi
     exec "${ROOT_DIR}/scripts/install.sh" "$@"
+    ;;
+  setup)
+    if [[ -n "${TUNLET_INSTALL_ROOT:-}" && \
+          "${ROOT_DIR}" == "${TUNLET_INSTALL_ROOT}/app" ]]; then
+      echo "The setup command is only for a source checkout." >&2
+      echo "Run 'tunlet install' to prepare the installed application." >&2
+      exit 2
+    fi
+    exec "${ROOT_DIR}/scripts/setup.sh" "$@"
     ;;
   start)
     [[ "$#" == 0 ]] || {

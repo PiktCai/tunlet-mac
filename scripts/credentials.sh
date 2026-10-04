@@ -3,6 +3,11 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 STATE_DIR="${TUNLET_STATE_DIR:-${ROOT_DIR}/.local}"
+if [[ -n "${TUNLET_INSTALL_ROOT:-}" ]]; then
+  SETUP_COMMAND="tunlet install"
+else
+  SETUP_COMMAND="./tunlet setup"
+fi
 HELPER="${STATE_DIR}/bin/tunlet-credentials"
 SERVER_FILE="${STATE_DIR}/server"
 USERNAME_FILE="${STATE_DIR}/username"
@@ -19,7 +24,7 @@ USAGE
 
 [[ -x "${HELPER}" ]] || {
   echo "The Tunlet credential helper is not installed." >&2
-  echo "Run 'tunlet install' to build it." >&2
+  echo "Run '${SETUP_COMMAND}' to build it." >&2
   exit 1
 }
 

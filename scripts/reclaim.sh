@@ -3,6 +3,11 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 STATE_DIR="${TUNLET_STATE_DIR:-${ROOT_DIR}/.local}"
+if [[ -n "${TUNLET_INSTALL_ROOT:-}" ]]; then
+  RESTORE_COMMAND="tunlet install"
+else
+  RESTORE_COMMAND="./tunlet setup"
+fi
 CONTAINER_NAME="tunlet"
 IMAGE_NAME="tunlet-runtime:local-arm64"
 DRY_RUN=0
@@ -110,4 +115,4 @@ if [[ "${temp_root}" != "/tmp" ]]; then
   cleanup_temp_root "/tmp"
 fi
 
-echo "Runtime space reclaimed. Run 'tunlet install' before the next connection."
+echo "Runtime space reclaimed. Run '${RESTORE_COMMAND}' before the next connection."

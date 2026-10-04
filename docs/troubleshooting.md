@@ -44,10 +44,16 @@ container system status
 
 ### 找不到镜像
 
-使用官方 ARM64 `.deb` 构建镜像：
+长期安装的用户运行：
 
 ```bash
-./scripts/build-image.sh /path/to/aTrustInstaller_arm64.deb
+tunlet install
+```
+
+源码模式的用户在仓库目录运行：
+
+```bash
+./tunlet setup
 ```
 
 ### 登录成功但无法访问目标
