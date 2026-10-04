@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+source "${ROOT_DIR}/scripts/lib/ui.sh"
 IMAGE_NAME="tunlet-runtime:local-arm64"
 BUILD_BASE_IMAGE="rust:1-bookworm"
 ATRUST_VERSION="2.5.16.20"
@@ -21,16 +22,18 @@ else
 fi
 
 fail() {
-  echo "Setup failed: $*" >&2
+  tunlet_ui_error "准备失败：$*" "Setup failed: $*"
   exit 1
 }
 
 print_completion() {
   echo
   if [[ -n "${TUNLET_INSTALL_ROOT:-}" ]]; then
-    echo "Setup complete. Run 'tunlet start' to connect."
+    tunlet_ui_ok "准备完成。" "Setup complete."
+    tunlet_ui_note "运行 tunlet start 开始连接。" "Run 'tunlet start' to connect."
   else
-    echo "Setup complete. Run './tunlet start' to connect."
+    tunlet_ui_ok "准备完成。" "Setup complete."
+    tunlet_ui_note "运行 ./tunlet start 开始连接。" "Run './tunlet start' to connect."
   fi
 }
 
@@ -52,33 +55,38 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-[[ "$(uname -s)" == "Darwin" ]] || fail "macOS is required."
-[[ "$(uname -m)" == "arm64" ]] || fail "Apple silicon is required."
+[[ "$(uname -s)" == "Darwin" ]] || fail "$(tunlet_text '需要 macOS。' 'macOS is required.')"
+[[ "$(uname -m)" == "arm64" ]] || fail "$(tunlet_text '需要 Apple 芯片。' 'Apple silicon is required.')"
 macos_major="$(sw_vers -productVersion | cut -d. -f1)"
 [[ "${macos_major}" =~ ^[0-9]+$ && "${macos_major}" -ge 26 ]] || \
-  fail "macOS 26 or later is required."
+  fail "$(tunlet_text '需要 macOS 26 或更高版本。' 'macOS 26 or later is required.')"
 
 for command_name in container curl shasum; do
   command -v "${command_name}" >/dev/null 2>&1 || {
     if [[ "${command_name}" == "container" ]]; then
-      fail "Apple Container is missing. Install it from https://github.com/apple/container/releases/latest"
+      fail "$(tunlet_text '缺少 Apple Container，请从 https://github.com/apple/container/releases/latest 安装。' 'Apple Container is missing. Install it from https://github.com/apple/container/releases/latest')"
     fi
-    fail "Missing command: ${command_name}"
+    fail "$(tunlet_text "缺少命令：${command_name}" "Missing command: ${command_name}")"
   }
 done
 
+tunlet_ui_title "准备运行环境" "Prepare runtime"
 if ! "${ROOT_DIR}/scripts/build-credentials.sh"; then
-  echo "Warning: Keychain integration could not be installed."
-  echo "Install Xcode Command Line Tools with: xcode-select --install"
+  tunlet_ui_warn "无法安装钥匙串集成，仍可手动输入密码。" \
+    "Keychain integration could not be installed; manual password entry remains available."
+  tunlet_ui_note "可运行 xcode-select --install 安装 Command Line Tools。" \
+    "Install Command Line Tools with: xcode-select --install"
 fi
 
 download_official_package() {
   local output="$1"
-  echo "Downloading aTrust ${ATRUST_VERSION} ARM64 from Sangfor's official CDN..."
+  tunlet_ui_step "正在从深信服官方 CDN 下载 aTrust ${ATRUST_VERSION} ARM64…" \
+    "Downloading aTrust ${ATRUST_VERSION} ARM64 from Sangfor's official CDN..."
   if ! curl --fail --location --retry 3 --progress-bar \
     "${ATRUST_URL}" --output "${output}"; then
     if [[ "${http_proxy:-}${https_proxy:-}${HTTP_PROXY:-}${HTTPS_PROXY:-}" == *"127.0.0.1"* ]]; then
-      echo "The configured local proxy is unavailable. Retrying without it..."
+      tunlet_ui_warn "当前本地代理不可用，将临时直连重试。" \
+        "The configured local proxy is unavailable. Retrying without it..."
       rm -f "${output}"
       env -u http_proxy -u https_proxy -u all_proxy \
         -u HTTP_PROXY -u HTTPS_PROXY -u ALL_PROXY \
@@ -93,14 +101,14 @@ download_official_package() {
   actual_sha256="$(shasum -a 256 "${output}" | awk '{print $1}')"
   [[ "${actual_sha256}" == "${ATRUST_SHA256}" ]] || {
     rm -f "${output}"
-    fail "Package checksum mismatch. The downloaded file was removed."
+    fail "$(tunlet_text '安装包校验失败，下载文件已删除。' 'Package checksum mismatch. The downloaded file was removed.')"
   }
-  echo "Package checksum verified."
+  tunlet_ui_ok "安装包校验通过。" "Package checksum verified."
 }
 
 select_local_package() {
   local selected
-  read -r -p "Drag an ARM64 .deb or .zip file here, then press Enter: " selected
+  read -r -p "$(tunlet_ui_prompt '将 ARM64 .deb 或 .zip 文件拖到这里，然后按回车：' 'Drag an ARM64 .deb or .zip here, then press Enter: ')" selected
   selected="${selected#\'}"
   selected="${selected%\'}"
   selected="${selected#\"}"
@@ -111,28 +119,28 @@ select_local_package() {
 
 prepare_package() {
   local source="$1"
-  [[ -f "${source}" ]] || fail "Package not found: ${source}"
+  [[ -f "${source}" ]] || fail "$(tunlet_text "找不到安装包：${source}" "Package not found: ${source}")"
 
   case "${source}" in
     *.zip|*.ZIP)
-      command -v unzip >/dev/null 2>&1 || fail "unzip is required for .zip packages."
+      command -v unzip >/dev/null 2>&1 || fail "$(tunlet_text '处理 .zip 安装包需要 unzip。' 'unzip is required for .zip packages.')"
       [[ -n "${TEMP_DIR}" ]] || TEMP_DIR="$(mktemp -d "${TEMP_ROOT}/tunlet-setup.XXXXXX")"
       unzip -q "${source}" -d "${TEMP_DIR}/package"
       local extracted
       extracted="$(find "${TEMP_DIR}/package" -type f -name 'aTrustInstaller_arm64.deb' -print -quit)"
-      [[ -n "${extracted}" ]] || fail "The archive does not contain aTrustInstaller_arm64.deb."
+      [[ -n "${extracted}" ]] || fail "$(tunlet_text '压缩包中没有 aTrustInstaller_arm64.deb。' 'The archive does not contain aTrustInstaller_arm64.deb.')"
       PACKAGE_PATH="${extracted}"
       ;;
     *.deb|*.DEB)
       PACKAGE_PATH="${source}"
       ;;
     *)
-      fail "The package must be an ARM64 .deb or a .zip containing it."
+      fail "$(tunlet_text '安装包必须是 ARM64 .deb，或包含它的 .zip。' 'The package must be an ARM64 .deb or a .zip containing it.')"
       ;;
   esac
 }
 
-[[ "$#" -le 1 ]] || fail "Usage: ${SETUP_COMMAND} [ARM64 package path]"
+[[ "$#" -le 1 ]] || fail "$(tunlet_text "用法：${SETUP_COMMAND} [ARM64 安装包路径]" "Usage: ${SETUP_COMMAND} [ARM64 package path]")"
 
 if ! container system status >/dev/null 2>&1; then
   container system start
@@ -141,11 +149,11 @@ fi
 
 if container image list | awk \
   '$1 == "tunlet-runtime" && $2 == "local-arm64" { found = 1 } END { exit !found }'; then
-  read -r -p "A Tunlet image already exists. Rebuild it? [y/N] " rebuild
+  read -r -p "$(tunlet_ui_prompt 'Tunlet 镜像已存在，是否重新构建？[y/N] ' 'A Tunlet image already exists. Rebuild it? [y/N] ')" rebuild
   case "${rebuild:-n}" in
     y|Y|yes|YES) ;;
     *)
-      echo "Kept the existing image."
+      tunlet_ui_ok "已保留现有镜像。" "Kept the existing image."
       print_completion
       exit 0
       ;;
@@ -154,10 +162,10 @@ fi
 
 package_source="${1:-}"
 if [[ -z "${package_source}" ]]; then
-  echo "Select a package source:"
-  echo "  1. Download verified version ${ATRUST_VERSION} from Sangfor's official CDN"
-  echo "  2. Use a local package"
-  read -r -p "Choice [1]: " choice
+  printf '%s\n' "$(tunlet_text '选择安装包来源：' 'Select a package source:')"
+  printf '%s\n' "$(tunlet_text "  1. 从深信服官方 CDN 下载已验证版本 ${ATRUST_VERSION}" "  1. Download verified version ${ATRUST_VERSION} from Sangfor's official CDN")"
+  printf '%s\n' "$(tunlet_text '  2. 使用本地安装包' '  2. Use a local package')"
+  read -r -p "$(tunlet_ui_prompt '选择 [1]：' 'Choice [1]: ')" choice
   choice="${choice:-1}"
   case "${choice}" in
     1)
@@ -169,7 +177,7 @@ if [[ -z "${package_source}" ]]; then
       package_source="$(select_local_package)"
       ;;
     *)
-      fail "Invalid choice."
+      fail "$(tunlet_text '选项无效。' 'Invalid choice.')"
       ;;
   esac
 fi

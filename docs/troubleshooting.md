@@ -64,6 +64,12 @@ tunlet install
 curl --socks5-hostname 127.0.0.1:11080 -I https://example.com
 ```
 
+### 提示密码登录失败
+
+服务器地址需要是完整的 HTTP(S) URL。当前版本允许只输入域名，并会自动补全为 HTTPS，例如 `vpn.example.edu.cn` 会变成 `https://vpn.example.edu.cn`。旧版本遇到 `sdkCode 20001` 时，先运行 `tunlet stop`，更新 Tunlet，再重新输入服务器地址、账号和密码。
+
+`sdkCode 20001` 不是唯一对应某一种错误的代码。地址正确后仍失败，应继续确认账号、密码、所属认证域和服务端允许的客户端版本。
+
 ### 没有钥匙串或 Touch ID 功能
 
 安装时会使用系统 Swift 编译器构建本机钥匙串辅助程序。如果安装输出提示找不到 Swift，可以安装 Command Line Tools 后重新运行安装：

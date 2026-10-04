@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+source "${ROOT_DIR}/scripts/lib/ui.sh"
 STATE_DIR="${TUNLET_STATE_DIR:-${ROOT_DIR}/.local}"
 TOKEN_FILE="${STATE_DIR}/helper-token"
 CONTAINER_NAME="tunlet"
@@ -20,4 +21,4 @@ rm -f "${TOKEN_FILE}"
 if [[ "$(container list --format json 2>/dev/null)" == "[]" ]]; then
   container system stop >/dev/null 2>&1 || true
 fi
-echo "Tunlet stopped."
+tunlet_ui_ok "Tunlet 已停止。" "Tunlet stopped."

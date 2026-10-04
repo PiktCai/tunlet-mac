@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+source "${ROOT_DIR}/scripts/lib/ui.sh"
 STATE_DIR="${TUNLET_STATE_DIR:-${ROOT_DIR}/.local}"
 EXPECTED_INSTALL_ROOT="${HOME}/Library/Application Support/Tunlet"
 INSTALL_ROOT="${TUNLET_INSTALL_ROOT:-}"
@@ -21,7 +22,8 @@ ASSUME_YES=0
 INCLUDE_BUILDER=0
 
 usage() {
-  cat <<'USAGE'
+  if [[ "${TUNLET_LANG}" == "en" ]]; then
+    cat <<'USAGE'
 Usage: tunlet uninstall [options]
 
 Remove Tunlet's command, application, runtime, local state, and temporary files.
@@ -32,6 +34,19 @@ Options:
   --include-builder  Also remove the shared Apple Container builder
   -h, --help         Show this help
 USAGE
+  else
+    cat <<'USAGE'
+用法：tunlet uninstall [选项]
+
+删除 Tunlet 命令、程序、运行镜像、本地状态和临时文件。
+
+选项：
+  --dry-run          仅显示卸载范围
+  --yes              跳过确认
+  --include-builder  同时删除共享的 Apple Container builder
+  -h, --help         显示帮助
+USAGE
+  fi
 }
 
 while [[ "$#" -gt 0 ]]; do
@@ -44,7 +59,7 @@ while [[ "$#" -gt 0 ]]; do
       exit 0
       ;;
     *)
-      echo "Unknown option: $1" >&2
+      tunlet_ui_error "未知选项：$1" "Unknown option: $1"
       usage >&2
       exit 2
       ;;
@@ -53,38 +68,42 @@ while [[ "$#" -gt 0 ]]; do
 done
 
 [[ "$(uname -s)" == "Darwin" ]] || {
-  echo "This script requires macOS." >&2
+  tunlet_ui_error "该脚本需要 macOS。" "This script requires macOS."
   exit 1
 }
 
-echo "The following items will be removed:"
-echo "  - Container: ${CONTAINER_NAME}"
-echo "  - Image: ${IMAGE_NAME}"
-echo "  - Local state: ${STATE_DIR}"
-echo "  - Passwords saved by Tunlet in macOS Keychain"
-echo "  - Tunlet temporary files"
+tunlet_ui_title "卸载" "Uninstall"
+printf '%s\n' "$(tunlet_text '将删除以下内容：' 'The following items will be removed:')"
+printf '%s\n' "$(tunlet_text "  - 容器：${CONTAINER_NAME}" "  - Container: ${CONTAINER_NAME}")"
+printf '%s\n' "$(tunlet_text "  - 镜像：${IMAGE_NAME}" "  - Image: ${IMAGE_NAME}")"
+printf '%s\n' "$(tunlet_text "  - 本地状态：${STATE_DIR}" "  - Local state: ${STATE_DIR}")"
+printf '%s\n' "$(tunlet_text '  - Tunlet 保存到 macOS 钥匙串的密码' '  - Passwords saved by Tunlet in macOS Keychain')"
+printf '%s\n' "$(tunlet_text '  - Tunlet 临时文件' '  - Tunlet temporary files')"
 if [[ "${INSTALLED_MODE}" == 1 ]]; then
-  echo "  - Installed application: ${INSTALL_ROOT}"
-  echo "  - Command: ${LAUNCHER_PATH}"
+  printf '%s\n' "$(tunlet_text "  - 已安装程序：${INSTALL_ROOT}" "  - Installed application: ${INSTALL_ROOT}")"
+  printf '%s\n' "$(tunlet_text "  - 命令：${LAUNCHER_PATH}" "  - Command: ${LAUNCHER_PATH}")"
 fi
 if [[ "${INCLUDE_BUILDER}" == 1 ]]; then
-  echo "  - Shared Apple Container builder cache"
+  printf '%s\n' "$(tunlet_text '  - 共享的 Apple Container builder 缓存' '  - Shared Apple Container builder cache')"
   echo
-  echo "Warning: other projects may use the shared builder. It will need to be recreated."
+  tunlet_ui_warn "其他项目可能使用共享 builder，删除后需要重新创建。" \
+    "Other projects may use the shared builder. It will need to be recreated."
 fi
 echo
-echo "Apple Container and unrelated containers or images will not be removed."
+tunlet_ui_note "Apple Container 和无关的容器、镜像不会被删除。" \
+  "Apple Container and unrelated containers or images will not be removed."
 
 if [[ "${DRY_RUN}" == 1 ]]; then
   echo
-  echo "Dry run only. Nothing was removed."
+  tunlet_ui_note "当前仅为预览，没有删除任何内容。" \
+    "Dry run only. Nothing was removed."
   exit 0
 fi
 
 if [[ "${ASSUME_YES}" != 1 ]]; then
-  read -r -p "Type DELETE to continue: " confirmation
+  read -r -p "$(tunlet_ui_prompt '输入 DELETE 继续：' 'Type DELETE to continue: ')" confirmation
   [[ "${confirmation}" == "DELETE" ]] || {
-    echo "Cancelled."
+    tunlet_ui_note "已取消。" "Cancelled."
     exit 0
   }
 fi
@@ -115,7 +134,8 @@ if command -v container >/dev/null 2>&1; then
   if ! container system status >/dev/null 2>&1; then
     if ! container system start >/dev/null; then
       container_ready=0
-      echo "Apple Container could not start. Skipping container and image cleanup." >&2
+      tunlet_ui_warn "Apple Container 无法启动，跳过容器和镜像清理。" \
+        "Apple Container could not start. Skipping container and image cleanup."
     fi
   fi
 
@@ -133,12 +153,14 @@ if command -v container >/dev/null 2>&1; then
     fi
   fi
 else
-  echo "Apple Container was not found. Skipping container and image cleanup."
+  tunlet_ui_warn "未找到 Apple Container，跳过容器和镜像清理。" \
+    "Apple Container was not found. Skipping container and image cleanup."
 fi
 
 if [[ -x "${CREDENTIAL_HELPER}" ]]; then
   if ! "${CREDENTIAL_HELPER}" delete-all; then
-    echo "Warning: Tunlet could not remove its saved Keychain passwords." >&2
+    tunlet_ui_warn "无法删除 Tunlet 保存的钥匙串密码。" \
+      "Tunlet could not remove its saved Keychain passwords."
   fi
 elif command -v security >/dev/null 2>&1; then
   while security delete-generic-password \
@@ -166,7 +188,11 @@ if [[ "${INSTALLED_MODE}" == 1 ]]; then
   fi
   cd "${HOME}"
   rm -rf -- "${INSTALL_ROOT}"
-  echo "Tunlet was removed. Apple Container and unrelated data remain installed."
+  tunlet_ui_ok "Tunlet 已卸载。" "Tunlet was removed."
+  tunlet_ui_note "Apple Container 和无关数据仍然保留。" \
+    "Apple Container and unrelated data remain installed."
 else
-  echo "Runtime data was removed. The source tree and Apple Container remain installed."
+  tunlet_ui_ok "运行数据已删除。" "Runtime data was removed."
+  tunlet_ui_note "源码目录和 Apple Container 仍然保留。" \
+    "The source tree and Apple Container remain installed."
 fi

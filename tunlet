@@ -2,9 +2,42 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
+STATE_DIR="${TUNLET_STATE_DIR:-${ROOT_DIR}/.local}"
+LANGUAGE_FILE="${STATE_DIR}/language"
+
+language_override=""
+if [[ -n "${TUNLET_LANG:-}" ]]; then
+  TUNLET_LANG_EXPLICIT=1
+else
+  TUNLET_LANG_EXPLICIT=0
+fi
+if [[ "${1:-}" == "--lang" ]]; then
+  [[ "$#" -ge 2 ]] || {
+    echo "--lang requires zh or en." >&2
+    exit 2
+  }
+  language_override="$2"
+  TUNLET_LANG_EXPLICIT=1
+  shift 2
+fi
+if [[ -n "${language_override}" ]]; then
+  case "${language_override}" in
+    zh|en) ;;
+    *)
+      echo "Language must be zh or en." >&2
+      exit 2
+      ;;
+  esac
+  TUNLET_LANG="${language_override}"
+elif [[ -z "${TUNLET_LANG:-}" && -f "${LANGUAGE_FILE}" ]]; then
+  IFS= read -r TUNLET_LANG <"${LANGUAGE_FILE}"
+fi
+export TUNLET_LANG_EXPLICIT
+source "${ROOT_DIR}/scripts/lib/ui.sh"
 
 usage() {
-  cat <<'USAGE'
+  if [[ "${TUNLET_LANG}" == "en" ]]; then
+    cat <<'USAGE'
 Usage: tunlet <command> [options]
 
 Commands:
@@ -14,6 +47,7 @@ Commands:
   status             Show the current status
   stop               Disconnect and stop Tunlet
   credentials        Inspect or delete saved passwords
+  language [zh|en]   Show or change the interface language
   reclaim            Remove large runtime data but keep settings
   uninstall          Remove Tunlet completely
   help               Show this help
@@ -23,57 +57,114 @@ Examples:
   ./tunlet setup
   tunlet start
   tunlet reclaim
+
+Global options:
+  --lang zh|en       Select the language for this command
 USAGE
+  else
+    cat <<'USAGE'
+用法：tunlet <命令> [选项]
+
+命令：
+  install [安装包]   安装命令或重新构建运行镜像
+  setup [安装包]     在源码目录准备一次性运行环境
+  start              连接 aTrust
+  status             查看当前状态
+  stop               断开并停止 Tunlet
+  credentials        查看或删除已保存的密码
+  language [zh|en]   查看或更改界面语言
+  reclaim            清理大型运行数据并保留设置
+  uninstall          完整卸载 Tunlet
+  help               显示帮助
+
+示例：
+  tunlet install
+  ./tunlet setup
+  tunlet start
+  tunlet reclaim
+
+全局选项：
+  --lang zh|en       为本次命令指定语言
+USAGE
+  fi
 }
 
 show_status() {
   local all_containers
   local running_containers
   local response
-  local state_dir="${TUNLET_STATE_DIR:-${ROOT_DIR}/.local}"
-  local token_file="${state_dir}/helper-token"
+  local token_file="${STATE_DIR}/helper-token"
 
   if ! command -v container >/dev/null 2>&1; then
-    echo "Apple Container: not installed"
-    echo "Tunlet: stopped"
+    tunlet_ui_title "状态" "Status"
+    printf '%s\n' "$(tunlet_text 'Apple Container：未安装' 'Apple Container: not installed')"
+    printf '%s\n' "$(tunlet_text 'Tunlet：已停止' 'Tunlet: stopped')"
     return 0
   fi
 
   if ! container system status >/dev/null 2>&1; then
-    echo "Apple Container: stopped"
-    echo "Tunlet: stopped"
+    tunlet_ui_title "状态" "Status"
+    printf '%s\n' "$(tunlet_text 'Apple Container：已停止' 'Apple Container: stopped')"
+    printf '%s\n' "$(tunlet_text 'Tunlet：已停止' 'Tunlet: stopped')"
     return 0
   fi
 
-  echo "Apple Container: running"
+  tunlet_ui_title "状态" "Status"
+  printf '%s\n' "$(tunlet_text 'Apple Container：运行中' 'Apple Container: running')"
   all_containers="$(container list --all --format json 2>/dev/null || true)"
   running_containers="$(container list --format json 2>/dev/null || true)"
 
   if [[ "${running_containers}" == *'"id":"tunlet"'* ]]; then
-    echo "Tunlet container: running"
+    printf '%s\n' "$(tunlet_text 'Tunlet 容器：运行中' 'Tunlet container: running')"
     if [[ -f "${token_file}" ]]; then
       response="$(curl --silent --max-time 3 \
         --header "Authorization: Bearer $(<"${token_file}")" \
         http://127.0.0.1:54680/status 2>/dev/null || true)"
       if [[ "${response}" == *'"connected":true'* ]]; then
-        echo "aTrust tunnel: connected"
-        echo "SOCKS5: 127.0.0.1:11080"
+        printf '%s\n' "$(tunlet_text 'aTrust 隧道：已连接' 'aTrust tunnel: connected')"
+        printf '%s\n' "$(tunlet_text 'SOCKS5 代理：127.0.0.1:11080' 'SOCKS5 proxy: 127.0.0.1:11080')"
       else
-        echo "aTrust tunnel: disconnected or unknown"
+        printf '%s\n' "$(tunlet_text 'aTrust 隧道：未连接或状态未知' 'aTrust tunnel: disconnected or unknown')"
       fi
     fi
   elif [[ "${all_containers}" == *'"id":"tunlet"'* ]]; then
-    echo "Tunlet container: stopped"
+    printf '%s\n' "$(tunlet_text 'Tunlet 容器：已停止' 'Tunlet container: stopped')"
   else
-    echo "Tunlet container: not found"
+    printf '%s\n' "$(tunlet_text 'Tunlet 容器：不存在' 'Tunlet container: not found')"
   fi
 
   if container image list 2>/dev/null | awk \
     '$1 == "tunlet-runtime" && $2 == "local-arm64" { found = 1 } END { exit !found }'; then
-    echo "Runtime image: installed"
+    printf '%s\n' "$(tunlet_text '运行镜像：已安装' 'Runtime image: installed')"
   else
-    echo "Runtime image: not installed"
+    printf '%s\n' "$(tunlet_text '运行镜像：未安装' 'Runtime image: not installed')"
   fi
+}
+
+set_language() {
+  local requested="${1:-}"
+  if [[ -z "${requested}" ]]; then
+    printf '%s\n' "$(tunlet_text '当前语言：中文（zh）' 'Current language: English (en)')"
+    return 0
+  fi
+  [[ "$#" == 1 ]] || {
+    tunlet_ui_error "language 命令只接受一个参数。" "The language command accepts one argument."
+    exit 2
+  }
+  case "${requested}" in
+    zh|en) ;;
+    *)
+      tunlet_ui_error "语言必须是 zh 或 en。" "Language must be zh or en."
+      exit 2
+      ;;
+  esac
+  mkdir -p "${STATE_DIR}"
+  chmod 700 "${STATE_DIR}"
+  printf '%s\n' "${requested}" >"${LANGUAGE_FILE}"
+  chmod 600 "${LANGUAGE_FILE}"
+  TUNLET_LANG="${requested}"
+  tunlet_init_language
+  tunlet_ui_ok "界面语言已切换为中文。" "Interface language changed to English."
 }
 
 command_name="${1:-help}"
@@ -92,35 +183,38 @@ case "${command_name}" in
   setup)
     if [[ -n "${TUNLET_INSTALL_ROOT:-}" && \
           "${ROOT_DIR}" == "${TUNLET_INSTALL_ROOT}/app" ]]; then
-      echo "The setup command is only for a source checkout." >&2
-      echo "Run 'tunlet install' to prepare the installed application." >&2
+      tunlet_ui_error "setup 只用于源码目录。" "The setup command is only for a source checkout."
+      tunlet_ui_note "请运行 tunlet install 准备已安装的程序。" "Run 'tunlet install' to prepare the installed application."
       exit 2
     fi
     exec "${ROOT_DIR}/scripts/setup.sh" "$@"
     ;;
   start)
     [[ "$#" == 0 ]] || {
-      echo "The start command does not accept options." >&2
+      tunlet_ui_error "start 命令不接受其他选项。" "The start command does not accept options."
       exit 2
     }
     exec "${ROOT_DIR}/scripts/start.sh"
     ;;
   status)
     [[ "$#" == 0 ]] || {
-      echo "The status command does not accept options." >&2
+      tunlet_ui_error "status 命令不接受其他选项。" "The status command does not accept options."
       exit 2
     }
     show_status
     ;;
   stop)
     [[ "$#" == 0 ]] || {
-      echo "The stop command does not accept options." >&2
+      tunlet_ui_error "stop 命令不接受其他选项。" "The stop command does not accept options."
       exit 2
     }
     exec "${ROOT_DIR}/scripts/stop.sh"
     ;;
   credentials)
     exec "${ROOT_DIR}/scripts/credentials.sh" "$@"
+    ;;
+  language|lang)
+    set_language "$@"
     ;;
   reclaim)
     exec "${ROOT_DIR}/scripts/reclaim.sh" "$@"
@@ -132,7 +226,7 @@ case "${command_name}" in
     usage
     ;;
   *)
-    echo "Unknown command: ${command_name}" >&2
+    tunlet_ui_error "未知命令：${command_name}" "Unknown command: ${command_name}"
     echo >&2
     usage >&2
     exit 2

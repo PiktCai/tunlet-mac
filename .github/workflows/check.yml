@@ -13,9 +13,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Check shell syntax
-        run: bash -n tunlet install.sh scripts/*.sh
+        run: bash -n tunlet install.sh scripts/*.sh scripts/lib/*.sh
       - name: Check Clash configuration
         run: ./scripts/test-config.sh
+      - name: Check CLI behavior
+        run: ./scripts/test-cli.sh
       - name: Run supervisor unit tests
         run: |
           rustc --edition=2021 --test scripts/supervisor.rs -o /tmp/tunlet-tests

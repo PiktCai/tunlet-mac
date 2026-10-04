@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+source "${ROOT_DIR}/scripts/lib/ui.sh"
 STATE_DIR="${TUNLET_STATE_DIR:-${ROOT_DIR}/.local}"
 if [[ -n "${TUNLET_INSTALL_ROOT:-}" ]]; then
   RESTORE_COMMAND="tunlet install"
@@ -14,7 +15,8 @@ DRY_RUN=0
 ASSUME_YES=0
 
 usage() {
-  cat <<'USAGE'
+  if [[ "${TUNLET_LANG}" == "en" ]]; then
+    cat <<'USAGE'
 Usage: tunlet reclaim [options]
 
 Remove the Tunlet runtime image and transient data while preserving the
@@ -25,6 +27,18 @@ Options:
   --yes       Skip confirmation
   -h, --help  Show this help
 USAGE
+  else
+    cat <<'USAGE'
+用法：tunlet reclaim [选项]
+
+删除 Tunlet 运行镜像和临时数据，保留命令、服务器、账号和钥匙串密码。
+
+选项：
+  --dry-run   仅显示清理范围
+  --yes       跳过确认
+  -h, --help  显示帮助
+USAGE
+  fi
 }
 
 while [[ "$#" -gt 0 ]]; do
@@ -36,7 +50,7 @@ while [[ "$#" -gt 0 ]]; do
       exit 0
       ;;
     *)
-      echo "Unknown option: $1" >&2
+      tunlet_ui_error "未知选项：$1" "Unknown option: $1"
       usage >&2
       exit 2
       ;;
@@ -44,23 +58,26 @@ while [[ "$#" -gt 0 ]]; do
   shift
 done
 
-echo "The following Tunlet runtime data will be removed:"
-echo "  - Container: ${CONTAINER_NAME}"
-echo "  - Image: ${IMAGE_NAME}"
-echo "  - Session token and Tunlet temporary files"
+tunlet_ui_title "清理运行空间" "Reclaim runtime space"
+printf '%s\n' "$(tunlet_text '将删除以下 Tunlet 运行数据：' 'The following Tunlet runtime data will be removed:')"
+printf '%s\n' "$(tunlet_text "  - 容器：${CONTAINER_NAME}" "  - Container: ${CONTAINER_NAME}")"
+printf '%s\n' "$(tunlet_text "  - 镜像：${IMAGE_NAME}" "  - Image: ${IMAGE_NAME}")"
+printf '%s\n' "$(tunlet_text '  - 会话令牌和 Tunlet 临时文件' '  - Session token and Tunlet temporary files')"
 echo
-echo "The command, saved server and username, and Keychain passwords will remain."
+tunlet_ui_note "命令、服务器、账号和钥匙串密码将保留。" \
+  "The command, server, username, and Keychain passwords will remain."
 
 if [[ "${DRY_RUN}" == 1 ]]; then
   echo
-  echo "Dry run only. Nothing was removed."
+  tunlet_ui_note "当前仅为预览，没有删除任何内容。" \
+    "Dry run only. Nothing was removed."
   exit 0
 fi
 
 if [[ "${ASSUME_YES}" != 1 ]]; then
-  read -r -p "Type RECLAIM to continue: " confirmation
+  read -r -p "$(tunlet_ui_prompt '输入 RECLAIM 继续：' 'Type RECLAIM to continue: ')" confirmation
   [[ "${confirmation}" == "RECLAIM" ]] || {
-    echo "Cancelled."
+    tunlet_ui_note "已取消。" "Cancelled."
     exit 0
   }
 fi
@@ -91,7 +108,8 @@ if command -v container >/dev/null 2>&1; then
   if ! container system status >/dev/null 2>&1; then
     if ! container system start >/dev/null; then
       container_ready=0
-      echo "Apple Container could not start. Skipping runtime cleanup." >&2
+      tunlet_ui_warn "Apple Container 无法启动，跳过运行数据清理。" \
+        "Apple Container could not start. Skipping runtime cleanup."
     fi
   fi
 
@@ -104,7 +122,8 @@ if command -v container >/dev/null 2>&1; then
     fi
   fi
 else
-  echo "Apple Container was not found. Skipping runtime cleanup."
+  tunlet_ui_warn "未找到 Apple Container，跳过运行数据清理。" \
+    "Apple Container was not found. Skipping runtime cleanup."
 fi
 
 rm -f -- "${STATE_DIR}/helper-token"
@@ -115,4 +134,6 @@ if [[ "${temp_root}" != "/tmp" ]]; then
   cleanup_temp_root "/tmp"
 fi
 
-echo "Runtime space reclaimed. Run '${RESTORE_COMMAND}' before the next connection."
+tunlet_ui_ok "运行空间已清理。" "Runtime space reclaimed."
+tunlet_ui_note "下次连接前请运行：${RESTORE_COMMAND}" \
+  "Before the next connection, run: ${RESTORE_COMMAND}"

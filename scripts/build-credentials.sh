@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+source "${ROOT_DIR}/scripts/lib/ui.sh"
 STATE_DIR="${TUNLET_STATE_DIR:-${ROOT_DIR}/.local}"
 OUTPUT_DIR="${STATE_DIR}/bin"
 OUTPUT_PATH="${OUTPUT_DIR}/tunlet-credentials"
@@ -11,11 +12,11 @@ TEMP_ROOT="${TMPDIR:-/tmp}"
 TEMP_ROOT="${TEMP_ROOT%/}"
 
 fail() {
-  echo "build-credentials: $*" >&2
+  tunlet_ui_error "钥匙串辅助程序：$*" "Credential helper: $*"
   exit 1
 }
 
-command -v shasum >/dev/null 2>&1 || fail "shasum is required"
+command -v shasum >/dev/null 2>&1 || fail "$(tunlet_text '缺少 shasum。' 'shasum is required.')"
 
 source_hash="$(
   shasum -a 256 "${SOURCE_PATH}" "$0" \
@@ -24,13 +25,13 @@ source_hash="$(
 )"
 if [[ -x "${OUTPUT_PATH}" && -f "${HASH_PATH}" ]] &&
    [[ "$(<"${HASH_PATH}")" == "${source_hash}" ]]; then
-  echo "Credential helper is up to date."
+  tunlet_ui_ok "钥匙串辅助程序已是最新版本。" "Credential helper is up to date."
   exit 0
 fi
 
 command -v swiftc >/dev/null 2>&1 || \
-  fail "Swift is required. Install Xcode Command Line Tools with: xcode-select --install"
-command -v codesign >/dev/null 2>&1 || fail "codesign is required"
+  fail "$(tunlet_text '需要 Swift。请运行 xcode-select --install 安装 Command Line Tools。' 'Swift is required. Install Xcode Command Line Tools with: xcode-select --install')"
+command -v codesign >/dev/null 2>&1 || fail "$(tunlet_text '缺少 codesign。' 'codesign is required.')"
 
 scratch_dir="$(mktemp -d "${TEMP_ROOT}/tunlet-swift.XXXXXX")"
 cleanup() {
@@ -56,4 +57,4 @@ codesign --force --sign - \
 printf '%s\n' "${source_hash}" >"${HASH_PATH}"
 chmod 600 "${HASH_PATH}"
 
-echo "Built ${OUTPUT_PATH}"
+tunlet_ui_ok "钥匙串辅助程序已构建。" "Credential helper built."

@@ -39,6 +39,12 @@ brew install container
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/PiktCai/tunlet-mac/main/install.sh)"
 ```
 
+默认使用中文。需要英文界面时运行：
+
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/PiktCai/tunlet-mac/main/install.sh)" -- --lang en
+```
+
 安装器会把源码下载到临时目录，将程序安装到 `~/Library/Application Support/Tunlet`，并在 `~/.local/bin` 创建 `tunlet` 命令；结束后删除下载和构建临时文件，不保留仓库副本，也不需要 `sudo`。希望先审阅脚本时，可直接查看仓库中的 [install.sh](install.sh)。
 
 安装程序可以从深信服官方 CDN 下载并校验已验证版本，也可以使用本地 ARM64 `.deb` 或包含该文件的 `.zip`。第一次构建需要一些时间；以后重复运行安装命令时，如镜像仍在，可以直接保留现有镜像。
@@ -83,7 +89,16 @@ tunlet status
 tunlet stop
 ```
 
-首次启动时按提示输入服务器、账号、密码和短信验证码。服务器与账号保存在本机应用数据目录；短信验证码不会保存。连接后，将需要访问受保护资源的程序设置为：
+首次启动时按提示输入服务器、账号、密码和短信验证码。服务器可以输入完整 URL，也可以只输入域名；未写协议时会自动补全为 HTTPS，例如 `vpn.example.edu.cn` 会变成 `https://vpn.example.edu.cn`。服务器与账号保存在本机应用数据目录；短信验证码不会保存。
+
+界面默认使用中文，可以随时切换并保存语言偏好：
+
+```bash
+tunlet language en
+tunlet language zh
+```
+
+只想临时使用另一种语言，可以把 `--lang zh|en` 放在命令前，例如 `tunlet --lang en status`。连接后，将需要访问受保护资源的程序设置为：
 
 ```text
 类型：SOCKS5

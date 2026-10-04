@@ -45,7 +45,9 @@ https://github.com/PiktCai/tunlet-mac
 
 安装器会把 `tunlet` 命令放到当前用户的应用目录。下载源码和构建镜像时产生的临时文件会自动删除，不会在“下载”文件夹留下仓库副本。
 
-第一次安装可能需要一些时间。看到 `Tunlet is ready` 就表示安装完成。
+第一次安装可能需要一些时间。看到 `✓ Tunlet 已准备完成。` 就表示安装完成。
+
+Tunlet 默认使用中文。需要英文界面时，可以在安装后运行 `tunlet language en`；运行 `tunlet language zh` 可以切回中文。
 
 ## 连接
 
@@ -55,7 +57,7 @@ https://github.com/PiktCai/tunlet-mac
 tunlet start
 ```
 
-按提示输入服务器地址、账号、密码和短信验证码。输入密码时终端不会显示字符，这是正常现象。
+按提示输入服务器地址、账号、密码和短信验证码。服务器地址可以填写 `https://vpn.example.edu.cn`，也可以只填写 `vpn.example.edu.cn`，Tunlet 会自动补全 HTTPS。输入密码时终端不会显示字符，这是正常现象。
 
 第一次登录成功后，可以选择把密码保存在 macOS 钥匙串：
 
@@ -66,7 +68,8 @@ tunlet start
 看到下面的信息后，隧道已经可以使用：
 
 ```text
-Connected. SOCKS5 proxy: 127.0.0.1:11080
+✓ 已连接。
+  SOCKS5 代理：127.0.0.1:11080
 ```
 
 ## 把配置作为 Clash 订阅导入
