@@ -84,6 +84,19 @@ SHA-256: c8c0c0add77c21abb72ae912b1ac01c2cad6cf0fc439a4b64545100153b0cf31
 
 遇到连接或构建问题时，参阅[原理与排障](docs/原理与排障.md)。
 
+## 删除
+
+双击 `卸载aTrust.command`，确认后会删除本项目的容器、镜像、本地账号记录和遗留临时文件。项目源码和 Apple Container 程序会保留，其他容器及镜像不受影响。
+
+需要先查看清理范围，或同时删除 Apple Container 的共享构建器缓存时，可以使用：
+
+```bash
+./scripts/uninstall.sh --dry-run
+./scripts/uninstall.sh --include-builder
+```
+
+共享构建器可能也被其他项目使用，因此默认不会删除。
+
 ## 镜像仓库
 
 Apple Container 使用标准 OCI 镜像，可以通过 Docker Hub、GitHub Container Registry 等仓库推送和拉取。本项目不发布公共运行镜像，因为其中包含 aTrust 闭源文件，目前没有取得公开再分发授权。
