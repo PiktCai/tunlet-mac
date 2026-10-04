@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-STATE_DIR="${ROOT_DIR}/.local"
+STATE_DIR="${TUNLET_STATE_DIR:-${ROOT_DIR}/.local}"
 TOKEN_FILE="${STATE_DIR}/helper-token"
 SERVER_FILE="${STATE_DIR}/server"
 USERNAME_FILE="${STATE_DIR}/username"
@@ -195,7 +195,7 @@ else
   echo
   echo "Not connected. The container remains available for troubleshooting."
   if [[ "${password_source}" == "keychain" ]]; then
-    echo "If the saved password has changed, run: ./tunlet credentials forget"
+    echo "If the saved password has changed, run: tunlet credentials forget"
   fi
   echo "Recent logs:"
   container logs -n 60 "${CONTAINER_NAME}" 2>/dev/null || true

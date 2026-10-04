@@ -5,21 +5,22 @@ ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 usage() {
   cat <<'USAGE'
-Usage: ./tunlet <command> [options]
+Usage: tunlet <command> [options]
 
 Commands:
-  install [package]  Install or rebuild the runtime image
+  install [package]  Install the command or rebuild the runtime image
   start              Start Tunlet and sign in to aTrust
   status             Show the current status
   stop               Disconnect and stop Tunlet
   credentials        Inspect or delete saved passwords
-  uninstall          Remove Tunlet runtime data
+  reclaim            Remove large runtime data but keep settings
+  uninstall          Remove Tunlet completely
   help               Show this help
 
 Examples:
-  ./tunlet install
-  ./tunlet start
-  ./tunlet stop
+  tunlet install
+  tunlet start
+  tunlet reclaim
 USAGE
 }
 
@@ -27,7 +28,8 @@ show_status() {
   local all_containers
   local running_containers
   local response
-  local token_file="${ROOT_DIR}/.local/helper-token"
+  local state_dir="${TUNLET_STATE_DIR:-${ROOT_DIR}/.local}"
+  local token_file="${state_dir}/helper-token"
 
   if ! command -v container >/dev/null 2>&1; then
     echo "Apple Container: not installed"
@@ -79,7 +81,11 @@ fi
 
 case "${command_name}" in
   install)
-    exec "${ROOT_DIR}/scripts/setup.sh" "$@"
+    if [[ -n "${TUNLET_INSTALL_ROOT:-}" && \
+          "${ROOT_DIR}" == "${TUNLET_INSTALL_ROOT}/app" ]]; then
+      exec "${ROOT_DIR}/scripts/setup.sh" "$@"
+    fi
+    exec "${ROOT_DIR}/scripts/install.sh" "$@"
     ;;
   start)
     [[ "$#" == 0 ]] || {
@@ -104,6 +110,9 @@ case "${command_name}" in
     ;;
   credentials)
     exec "${ROOT_DIR}/scripts/credentials.sh" "$@"
+    ;;
+  reclaim)
+    exec "${ROOT_DIR}/scripts/reclaim.sh" "$@"
     ;;
   uninstall)
     exec "${ROOT_DIR}/scripts/uninstall.sh" "$@"

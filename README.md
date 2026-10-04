@@ -1,62 +1,59 @@
 # Tunlet
 
-在 Apple Silicon Mac 上运行轻量 aTrust 隧道。连接成功后，本机开放一个 SOCKS5 代理，可供浏览器、系统代理或其他网络工具使用。
+在 Apple Silicon Mac 上运行轻量 aTrust 隧道。连接成功后，本机开放 SOCKS5 代理，供浏览器、代理客户端或其他程序访问受保护资源。
 
-> 本仓库不包含深信服 aTrust 安装包、许可证、账号、密码或预构建镜像。请自行确认所在机构允许使用相应客户端和网络服务。
+> 本项目不包含深信服 aTrust 安装包、许可证、账号、密码或预构建镜像。请确认所在机构允许使用相应客户端和网络服务。
 
-## 工作原理
+## 原理
 
 ```text
-应用程序
-    │
-    ▼
-SOCKS5 127.0.0.1:11080
-    │
-    ▼
-Apple Container 中的 Tunlet
-    │
-    ▼
-aTrust 隧道 → 受保护资源
+应用程序 → SOCKS5 127.0.0.1:11080
+                    ↓
+          Apple Container 中的 Tunlet
+                    ↓
+             aTrust 隧道 → 受保护资源
 ```
 
-镜像从官方 aTrust Linux ARM64 安装包中提取必要组件。Rust supervisor 负责登录、短信验证、隧道进程和 SOCKS5 服务，Apple Container 提供 TUN 网络环境。
+Tunlet 从官方 Linux ARM64 安装包提取运行组件。Rust supervisor 负责登录、短信验证、隧道进程和 SOCKS5 服务，Apple Container 提供隔离的 Linux 与 TUN 网络环境。
 
-## 适用环境
+## 环境
 
 - Apple Silicon Mac
-- macOS 26
+- macOS 26 或更高版本
+- [Apple Container](https://github.com/apple/container/releases/latest)
 - 可用的 aTrust 账号
 
-Intel Mac、Windows、Linux 主机和其他架构的安装包尚未验证。
-
-## 快速安装
-
-先安装 [Apple Container](https://github.com/apple/container/releases/latest)，也可以通过 Homebrew 安装：
+Apple Container 也可以通过 Homebrew 安装：
 
 ```bash
 brew install container
 ```
 
-下载本仓库，在终端进入项目目录后运行：
+## 安装
+
+复制下面一行到终端：
 
 ```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/PiktCai/tunlet-mac/main/install.sh)"
+```
+
+安装器会把源码下载到临时目录，将程序安装到 `~/Library/Application Support/Tunlet`，并在 `~/.local/bin` 创建 `tunlet` 命令；结束后删除下载和构建临时文件，不保留仓库副本，也不需要 `sudo`。希望先审阅脚本时，可直接查看仓库中的 [install.sh](install.sh)。
+
+安装程序可以从深信服官方 CDN 下载并校验已验证版本，也可以使用本地 ARM64 `.deb` 或包含该文件的 `.zip`。第一次构建需要一些时间；以后重复运行安装命令时，如镜像仍在，可以直接保留现有镜像。
+
+也可以手动安装：
+
+```bash
+git clone https://github.com/PiktCai/tunlet-mac.git
+cd tunlet-mac
 ./tunlet install
 ```
 
-安装程序提供两种方式：
+重新运行 one-liner 即可更新程序。安装过程会编译一个小型钥匙串辅助程序；缺少 Swift 编译器时，隧道仍能使用，但密码需要手动输入。可运行 `xcode-select --install` 安装 Command Line Tools。
 
-- 从深信服官方 CDN 下载并校验已验证版本
-- 使用本地 ARM64 `.deb` 或包含该文件的 `.zip`
+### 安装包来源
 
-安装包只用于本地构建，完成后会自动删除临时文件。
-
-安装过程还会在本机编译一个很小的钥匙串辅助程序。系统没有 Swift 编译器时，隧道仍可使用，但每次需要手动输入密码；可运行 `xcode-select --install` 安装所需的 Command Line Tools。
-
-## 安装包从哪里获取
-
-优先使用所在机构的 aTrust 接入页面提供的客户端版本。用浏览器打开平时登录 aTrust 的地址，在客户端下载页面查找 Linux、UOS 或 ARM64 版本。
-
-如果接入页面没有提供 ARM64 包，可以使用本项目验证过的 [aTrust 2.5.16.20 ARM64 安装包](https://atrustcdn.sangfor.com/standard/linux/2.5.16.20/uos/arm64/aTrustInstaller_arm64.deb)。文件由深信服官方 CDN 提供：
+优先使用所在机构的 aTrust 接入页面提供的 Linux、UOS 或 ARM64 客户端。如果接入页面没有提供，可以使用项目验证过的 [aTrust 2.5.16.20 ARM64 安装包](https://atrustcdn.sangfor.com/standard/linux/2.5.16.20/uos/arm64/aTrustInstaller_arm64.deb)：
 
 ```text
 SHA-256: c8c0c0add77c21abb72ae912b1ac01c2cad6cf0fc439a4b64545100153b0cf31
@@ -67,9 +64,13 @@ SHA-256: c8c0c0add77c21abb72ae912b1ac01c2cad6cf0fc439a4b64545100153b0cf31
 
 ## 使用
 
-运行 `./tunlet start`，按提示输入服务器地址、账号、密码和短信验证码。服务器地址和账号会保存在本机 `.local/` 目录，密码和验证码不会保存。
+```bash
+tunlet start
+tunlet status
+tunlet stop
+```
 
-连接成功后，将需要访问受保护资源的程序设置为：
+首次启动时按提示输入服务器、账号、密码和短信验证码。服务器与账号保存在本机应用数据目录；短信验证码不会保存。连接后，将需要访问受保护资源的程序设置为：
 
 ```text
 类型：SOCKS5
@@ -77,63 +78,54 @@ SHA-256: c8c0c0add77c21abb72ae912b1ac01c2cad6cf0fc439a4b64545100153b0cf31
 端口：11080
 ```
 
-`tunlet.yaml` 可导入兼容 Clash 配置格式的客户端。该配置使用 `MATCH` 规则，所有流量都会转发到 aTrust 出口。
+[tunlet.yaml](tunlet.yaml) 可导入兼容 Clash 配置格式的客户端，使用 `MATCH` 规则将全部流量转发到隧道。
 
-常用命令如下：
+### 密码与 Touch ID
 
-```bash
-./tunlet start
-./tunlet status
-./tunlet stop
-```
+第一次手动登录成功后，Tunlet 会询问是否把密码保存到 macOS 登录钥匙串：
 
-### 保存密码
-
-第一次手动登录成功后，Tunlet 会询问是否把密码保存到当前 Mac 的登录钥匙串：
-
-- 默认模式在每次启动时请求 Touch ID；没有可用生物识别时回退到系统登录认证。
-- 无感模式直接从钥匙串读取，不显示确认窗口，需要用户明确选择。
-- 也可以选择不保存，继续每次手动输入。
-
-账号、服务器和保存模式可以通过 `./tunlet credentials status` 查看，`./tunlet credentials forget` 会删除 Tunlet 保存的全部密码。短信验证码不会保存。
-
-遇到连接或构建问题时，参阅[原理与排障](docs/troubleshooting.md)。
-
-## 删除
-
-运行 `./tunlet uninstall`，确认后会删除本项目的容器、镜像、本地账号记录、钥匙串密码和遗留临时文件。项目源码和 Apple Container 程序会保留，其他容器、镜像及钥匙串项目不受影响。
-
-需要先查看清理范围，或同时删除 Apple Container 的共享构建器缓存时，可以使用：
+- 默认模式每次读取时请求 Touch ID；不可用时回退到系统登录认证。
+- 无感模式无需确认，需要用户明确选择。
+- 也可以不保存，每次手动输入。
 
 ```bash
-./tunlet uninstall --dry-run
-./tunlet uninstall --include-builder
+tunlet credentials status
+tunlet credentials forget
 ```
 
-共享构建器可能也被其他项目使用，因此默认不会删除。
+## 空间管理
 
-## 镜像仓库
+Tunlet 停止时会自动删除临时容器，因此不会长期留下约 1.5 GB 的“运行容器”。本机实测中，运行镜像的压缩数据约 100 MB，Apple Container 解包后的 Tunlet 镜像快照约 1.4 GB；Apple Container 自身的基础组件另占约 1.5 GB。实际大小会随运行时版本变化，可用 `container system df` 查看。
 
-Apple Container 使用标准 OCI 镜像，可以通过 Docker Hub、GitHub Container Registry 等仓库推送和拉取。本项目不发布公共运行镜像，因为其中包含 aTrust 闭源文件，目前没有取得公开再分发授权。
+急需空间时，可以保留命令、服务器、账号和钥匙串密码，只移除 Tunlet 镜像及临时数据：
 
-有权在自己的设备间复制镜像时，可以使用私有仓库，命令见[镜像分发](docs/image-distribution.md)。
+```bash
+tunlet reclaim --dry-run
+tunlet reclaim
+```
 
-## 安全说明
+下次使用前运行 `tunlet install` 重新构建镜像。平时无需手动清理；安装器会删除安装包、构建上下文、编译输出、builder 状态和本次新增的构建基础镜像。
 
-- 密码和验证码只通过临时文件传入容器，supervisor 读入后立即删除。
-- 保存的密码位于当前 Mac 的登录钥匙串，不写入项目目录；默认读取前必须通过 Touch ID 或系统认证。
+## 卸载
+
+```bash
+tunlet uninstall --dry-run
+tunlet uninstall
+```
+
+完整卸载会删除 Tunlet 命令、已安装程序、运行镜像、本地状态、钥匙串密码和临时文件。Apple Container 及其他项目的数据不会被删除。`--include-builder` 可以额外删除共享 builder，但可能影响其他项目，默认不使用。
+
+## 镜像分发
+
+Apple Container 支持标准 OCI 仓库。本项目不发布公共运行镜像，因为最终镜像包含 aTrust 闭源文件，目前没有取得公开再分发授权。有权在自己的设备间迁移时，可参考[镜像分发](docs/image-distribution.md)使用私有仓库。
+
+## 安全与拓展
+
+- 密码和验证码只通过临时文件传入容器，读取后立即删除。
+- 保存的密码位于 macOS 钥匙串，默认读取前需要 Touch ID 或系统认证。
 - SOCKS5 和辅助接口只映射到本机回环地址。
 - 项目不绕过 MFA、授权或访问控制。
-- aTrust 安装包和构建结果不进入 Git 仓库。
 
-## 拓展思路
+Tunlet 当前只支持 aTrust。这种“容器内运行厂商 Linux 客户端、宿主机使用本地 SOCKS5”的结构也可能适用于其他企业 VPN 或零信任客户端，但需要重新验证安装包、无界面认证、TUN 网络能力与许可条件。感兴趣的开发者可以 fork 后参考[移植思路](docs/porting.md)自行适配；这不是兼容承诺或开发路线图。
 
-Tunlet 当前只支持 Apple Silicon Mac、Apple Container 和 aTrust。它采用“容器内运行厂商 Linux 客户端，宿主机通过本地 SOCKS5 使用隧道”的结构，具备移植到其他企业 VPN 或零信任客户端的可能性，但每个目标都需要重新验证安装包架构、无界面认证、TUN 网络能力和许可条件。
-
-飞连官方提供 Linux 客户端，但公开信息还不足以判断能否直接在 Apple Container 中运行。感兴趣的开发者可以 fork 后按[移植思路](docs/porting.md)自行验证；这不是本项目的支持承诺或开发路线图。
-
-## 来源与许可
-
-本项目基于 [HomoLand/atrust-lite-gateway](https://github.com/HomoLand/atrust-lite-gateway) 的 MIT 许可代码。`fake-getlogin` 兼容层参考了 [docker-easyconnect/docker-easyconnect](https://github.com/docker-easyconnect/docker-easyconnect) 的 WTFPL 实现，详见 [NOTICE.md](NOTICE.md)。
-
-项目代码采用 [MIT License](LICENSE)。深信服 aTrust 不属于本项目，也不随仓库分发。
+遇到问题请参阅[原理与排障](docs/troubleshooting.md)。项目基于 [HomoLand/atrust-lite-gateway](https://github.com/HomoLand/atrust-lite-gateway) 的 MIT 许可代码，并参考 [docker-easyconnect/docker-easyconnect](https://github.com/docker-easyconnect/docker-easyconnect) 的 `fake-getlogin` 实现，详见 [NOTICE.md](NOTICE.md)。项目代码采用 [MIT License](LICENSE)，深信服 aTrust 不随仓库分发。

@@ -2,7 +2,16 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-STATE_DIR="${ROOT_DIR}/.local"
+STATE_DIR="${TUNLET_STATE_DIR:-${ROOT_DIR}/.local}"
+EXPECTED_INSTALL_ROOT="${HOME}/Library/Application Support/Tunlet"
+INSTALL_ROOT="${TUNLET_INSTALL_ROOT:-}"
+LAUNCHER_PATH="${HOME}/.local/bin/tunlet"
+INSTALLED_MODE=0
+if [[ "${INSTALL_ROOT}" == "${EXPECTED_INSTALL_ROOT}" && \
+      "${ROOT_DIR}" == "${EXPECTED_INSTALL_ROOT}/app" && \
+      "${STATE_DIR}" == "${EXPECTED_INSTALL_ROOT}/state" ]]; then
+  INSTALLED_MODE=1
+fi
 CONTAINER_NAME="tunlet"
 IMAGE_NAME="tunlet-runtime:local-arm64"
 CREDENTIAL_HELPER="${STATE_DIR}/bin/tunlet-credentials"
@@ -13,9 +22,9 @@ INCLUDE_BUILDER=0
 
 usage() {
   cat <<'USAGE'
-Usage: ./scripts/uninstall.sh [options]
+Usage: tunlet uninstall [options]
 
-Remove the container, image, local state, and temporary files created by Tunlet.
+Remove Tunlet's command, application, runtime, local state, and temporary files.
 
 Options:
   --dry-run          Show what would be removed
@@ -54,6 +63,10 @@ echo "  - Image: ${IMAGE_NAME}"
 echo "  - Local state: ${STATE_DIR}"
 echo "  - Passwords saved by Tunlet in macOS Keychain"
 echo "  - Tunlet temporary files"
+if [[ "${INSTALLED_MODE}" == 1 ]]; then
+  echo "  - Installed application: ${INSTALL_ROOT}"
+  echo "  - Command: ${LAUNCHER_PATH}"
+fi
 if [[ "${INCLUDE_BUILDER}" == 1 ]]; then
   echo "  - Shared Apple Container builder cache"
   echo
@@ -83,14 +96,17 @@ cleanup_temp_root() {
   [[ -d "${temp_root}" ]] || return 0
   while IFS= read -r -d '' candidate; do
     case "${candidate}" in
-      "${temp_root}"/tunlet.*|"${temp_root}"/tunlet-setup.*)
+      "${temp_root}"/tunlet.*|"${temp_root}"/tunlet-setup.*|\
+      "${temp_root}"/tunlet-build.*|"${temp_root}"/tunlet-swift.*|\
+      "${temp_root}"/tunlet-bootstrap.*)
         rm -rf -- "${candidate}"
         ;;
     esac
   done < <(
     find "${temp_root}" -mindepth 1 -maxdepth 1 -type d \
-      \( -name 'tunlet.*' -o -name 'tunlet-setup.*' \) \
-      -print0 2>/dev/null
+      \( -name 'tunlet.*' -o -name 'tunlet-setup.*' \
+         -o -name 'tunlet-build.*' -o -name 'tunlet-swift.*' \
+         -o -name 'tunlet-bootstrap.*' \) -print0 2>/dev/null
   )
 }
 
@@ -131,7 +147,8 @@ elif command -v security >/dev/null 2>&1; then
   done
 fi
 
-if [[ "${STATE_DIR}" == "${ROOT_DIR}/.local" ]]; then
+if [[ "${STATE_DIR}" == "${ROOT_DIR}/.local" || \
+      ( "${INSTALLED_MODE}" == 1 && "${STATE_DIR}" == "${INSTALL_ROOT}/state" ) ]]; then
   rm -rf -- "${STATE_DIR}"
 fi
 
@@ -142,4 +159,14 @@ if [[ "${temp_root}" != "/tmp" ]]; then
   cleanup_temp_root "/tmp"
 fi
 
-echo "Cleanup complete. The source tree and Apple Container remain installed."
+if [[ "${INSTALLED_MODE}" == 1 ]]; then
+  if [[ -f "${LAUNCHER_PATH}" ]] && \
+     grep -Fqx '# Managed by Tunlet' "${LAUNCHER_PATH}"; then
+    rm -f -- "${LAUNCHER_PATH}"
+  fi
+  cd "${HOME}"
+  rm -rf -- "${INSTALL_ROOT}"
+  echo "Tunlet was removed. Apple Container and unrelated data remain installed."
+else
+  echo "Runtime data was removed. The source tree and Apple Container remain installed."
+fi

@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 IMAGE_NAME="tunlet-runtime:local-arm64"
+BUILD_BASE_IMAGE="rust:1-bookworm"
 ATRUST_VERSION="2.5.16.20"
 ATRUST_URL="https://atrustcdn.sangfor.com/standard/linux/${ATRUST_VERSION}/uos/arm64/aTrustInstaller_arm64.deb"
 ATRUST_SHA256="c8c0c0add77c21abb72ae912b1ac01c2cad6cf0fc439a4b64545100153b0cf31"
@@ -11,6 +12,7 @@ TEMP_ROOT="${TEMP_ROOT%/}"
 TEMP_DIR=""
 STARTED_SYSTEM=0
 BUILD_STARTED=0
+BUILD_BASE_IMAGE_PRESENT=0
 PACKAGE_PATH=""
 
 fail() {
@@ -22,6 +24,9 @@ cleanup() {
   if [[ "${BUILD_STARTED}" == 1 ]]; then
     container builder stop >/dev/null 2>&1 || true
     container builder delete >/dev/null 2>&1 || true
+    if [[ "${BUILD_BASE_IMAGE_PRESENT}" == 0 ]]; then
+      container image delete --force "${BUILD_BASE_IMAGE}" >/dev/null 2>&1 || true
+    fi
   fi
   if [[ "${STARTED_SYSTEM}" == 1 ]] &&
      [[ "$(container list --format json 2>/dev/null || true)" == "[]" ]]; then
@@ -35,6 +40,9 @@ trap cleanup EXIT INT TERM
 
 [[ "$(uname -s)" == "Darwin" ]] || fail "macOS is required."
 [[ "$(uname -m)" == "arm64" ]] || fail "Apple silicon is required."
+macos_major="$(sw_vers -productVersion | cut -d. -f1)"
+[[ "${macos_major}" =~ ^[0-9]+$ && "${macos_major}" -ge 26 ]] || \
+  fail "macOS 26 or later is required."
 
 for command_name in container curl shasum; do
   command -v "${command_name}" >/dev/null 2>&1 || {
@@ -110,7 +118,24 @@ prepare_package() {
   esac
 }
 
-[[ "$#" -le 1 ]] || fail "Usage: ./scripts/setup.sh [ARM64 package path]"
+[[ "$#" -le 1 ]] || fail "Usage: tunlet install [ARM64 package path]"
+
+if ! container system status >/dev/null 2>&1; then
+  container system start
+  STARTED_SYSTEM=1
+fi
+
+if container image list | awk \
+  '$1 == "tunlet-runtime" && $2 == "local-arm64" { found = 1 } END { exit !found }'; then
+  read -r -p "A Tunlet image already exists. Rebuild it? [y/N] " rebuild
+  case "${rebuild:-n}" in
+    y|Y|yes|YES) ;;
+    *)
+      echo "Kept the existing image."
+      exit 0
+      ;;
+  esac
+fi
 
 package_source="${1:-}"
 if [[ -z "${package_source}" ]]; then
@@ -136,21 +161,9 @@ fi
 
 prepare_package "${package_source}"
 
-if ! container system status >/dev/null 2>&1; then
-  container system start
-  STARTED_SYSTEM=1
-fi
-
 if container image list | awk \
-  '$1 == "tunlet-runtime" && $2 == "local-arm64" { found = 1 } END { exit !found }'; then
-  read -r -p "A Tunlet image already exists. Rebuild it? [y/N] " rebuild
-  case "${rebuild:-n}" in
-    y|Y|yes|YES) ;;
-    *)
-      echo "Kept the existing image."
-      exit 0
-      ;;
-  esac
+  '$1 == "rust" && $2 == "1-bookworm" { found = 1 } END { exit !found }'; then
+  BUILD_BASE_IMAGE_PRESENT=1
 fi
 
 BUILD_STARTED=1
@@ -158,4 +171,4 @@ BUILD_STARTED=1
 "${ROOT_DIR}/scripts/test-runtime.sh"
 
 echo
-echo "Setup complete. Run ./tunlet start to connect."
+echo "Setup complete. Run 'tunlet start' to connect."

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-STATE_DIR="${ROOT_DIR}/.local"
+STATE_DIR="${TUNLET_STATE_DIR:-${ROOT_DIR}/.local}"
 OUTPUT_DIR="${STATE_DIR}/bin"
 OUTPUT_PATH="${OUTPUT_DIR}/tunlet-credentials"
 HASH_PATH="${OUTPUT_DIR}/tunlet-credentials.sha256"

@@ -30,7 +30,7 @@ Tunlet 把厂商客户端放进独立的 Linux 环境，在容器内建立 TUN �
 
 ## 其他宿主系统
 
-Tunlet 使用的 `container` CLI 官方支持 Apple Silicon 与 macOS 26，参见 [Apple Container 要求](https://github.com/apple/container/blob/main/README.md#requirements)。将同一思路带到 Linux 或 Windows，需要改用其他容器或虚拟化运行时，并重新处理 TUN、路由、DNS、端口映射和权限模型；这属于移植工程，而不是修改一个配置项。
+Tunlet 使用的 `container` CLI 官方支持 Apple Silicon 与 macOS 26 及更高版本，参见 [Apple Container 要求](https://github.com/apple/container/blob/main/README.md#requirements)。将同一思路带到 Linux 或 Windows，需要改用其他容器或虚拟化运行时，并重新处理 TUN、路由、DNS、端口映射和权限模型；这属于移植工程，而不是修改一个配置项。
 
 ## 安全与许可边界
 

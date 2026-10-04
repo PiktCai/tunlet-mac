@@ -2,7 +2,8 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-TOKEN_FILE="${ROOT_DIR}/.local/helper-token"
+STATE_DIR="${TUNLET_STATE_DIR:-${ROOT_DIR}/.local}"
+TOKEN_FILE="${STATE_DIR}/helper-token"
 CONTAINER_NAME="tunlet"
 
 if [[ -f "${TOKEN_FILE}" ]]; then

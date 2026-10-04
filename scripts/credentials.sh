@@ -2,14 +2,14 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-STATE_DIR="${ROOT_DIR}/.local"
+STATE_DIR="${TUNLET_STATE_DIR:-${ROOT_DIR}/.local}"
 HELPER="${STATE_DIR}/bin/tunlet-credentials"
 SERVER_FILE="${STATE_DIR}/server"
 USERNAME_FILE="${STATE_DIR}/username"
 
 usage() {
   cat <<'USAGE'
-Usage: ./tunlet credentials <command>
+Usage: tunlet credentials <command>
 
 Commands:
   status  Show whether the current account has a saved password
@@ -19,7 +19,7 @@ USAGE
 
 [[ -x "${HELPER}" ]] || {
   echo "The Tunlet credential helper is not installed." >&2
-  echo "Run ./tunlet install to build it." >&2
+  echo "Run 'tunlet install' to build it." >&2
   exit 1
 }
 

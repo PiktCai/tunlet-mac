@@ -64,33 +64,31 @@ curl --socks5-hostname 127.0.0.1:11080 -I https://example.com
 
 ```bash
 xcode-select --install
-./tunlet install
+tunlet install
 ```
 
-通过 `./tunlet credentials status` 检查当前账号是否保存了密码。Touch ID 被取消、锁定或不可用时，Tunlet 会回退到手动输入密码；不会绕过系统认证。
+通过 `tunlet credentials status` 检查当前账号是否保存了密码。Touch ID 被取消、锁定或不可用时，Tunlet 会回退到手动输入密码；不会绕过系统认证。
 
 ### Apple Container 占用空间较大
 
-查看本地镜像和构建器状态：
+查看 Apple Container 的磁盘占用：
 
 ```bash
-container image list
-container builder status
+container system df
 ```
 
-Apple Container 的虚拟机、基础镜像和构建缓存会占用额外空间。清理前应确认其他项目不再使用相关数据。
+Tunlet 使用 `container run --rm`，停止后不会保留运行容器。本机实测中，OCI 压缩数据约 100 MB，解包后的 Tunlet 镜像快照约 1.4 GB；Apple Container 的基础组件另占约 1.5 GB。实际大小随 Apple Container 和 aTrust 版本变化，不能只按压缩镜像估算。
 
-本项目生成的 OCI 镜像压缩后约 95 MB。Apple Container 1.5.0 会为运行镜像、`vminit` 和内部 builder shim 创建独立磁盘快照，首次构建后的实际占用可能在 3 GB 以上。这部分占用不能直接按压缩镜像大小估算。
-
-不用时可以关闭后台服务，释放运行内存：
+只想临时腾出 Tunlet 镜像空间，同时保留命令、账号设置和钥匙串密码：
 
 ```bash
-container system stop
+tunlet reclaim --dry-run
+tunlet reclaim
 ```
 
-删除 `tunlet-runtime:local-arm64` 会释放镜像磁盘空间，但下次使用前必须重新构建或从私有仓库拉取。
+下次使用前运行 `tunlet install` 重新构建镜像。不使用时，`tunlet stop` 会停止容器，并在没有其他运行容器时关闭 Apple Container 后台服务。
 
-完整删除本项目的运行数据时，可以运行 `./tunlet uninstall`。该命令不会卸载 Apple Container，也不会清理其他项目的容器或镜像。
+完整删除本项目时，可以运行 `tunlet uninstall`。该命令会删除已安装命令、程序、运行数据和钥匙串密码，但不会卸载 Apple Container，也不会清理其他项目的容器或镜像。
 
 ## 已知限制
 
