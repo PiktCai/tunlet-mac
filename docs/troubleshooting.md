@@ -58,6 +58,17 @@ container system status
 curl --socks5-hostname 127.0.0.1:11080 -I https://example.com
 ```
 
+### 没有钥匙串或 Touch ID 功能
+
+安装时会使用系统 Swift 编译器构建本机钥匙串辅助程序。如果安装输出提示找不到 Swift，可以安装 Command Line Tools 后重新运行安装：
+
+```bash
+xcode-select --install
+./tunlet install
+```
+
+通过 `./tunlet credentials status` 检查当前账号是否保存了密码。Touch ID 被取消、锁定或不可用时，Tunlet 会回退到手动输入密码；不会绕过系统认证。
+
 ### Apple Container 占用空间较大
 
 查看本地镜像和构建器状态：

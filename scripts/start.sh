@@ -6,6 +6,7 @@ STATE_DIR="${ROOT_DIR}/.local"
 TOKEN_FILE="${STATE_DIR}/helper-token"
 SERVER_FILE="${STATE_DIR}/server"
 USERNAME_FILE="${STATE_DIR}/username"
+CREDENTIAL_HELPER="${STATE_DIR}/bin/tunlet-credentials"
 CONTAINER_NAME="tunlet"
 IMAGE_NAME="tunlet-runtime:local-arm64"
 HOST_HELPER_URL="http://127.0.0.1:54680"
@@ -50,8 +51,25 @@ if [[ -n "${username_default}" ]]; then
 else
   read -r -p "Username: " username
 fi
-read -r -s -p "Password (input hidden): " password
-echo
+
+password=""
+password_source="manual"
+if [[ -x "${CREDENTIAL_HELPER}" ]]; then
+  echo "Checking macOS Keychain for a saved password..."
+  if password="$("${CREDENTIAL_HELPER}" read \
+    --server "${server}" \
+    --username "${username}")"; then
+    password_source="keychain"
+    echo "Loaded the saved password."
+  else
+    echo "Using manual password entry."
+  fi
+fi
+
+if [[ "${password_source}" == "manual" ]]; then
+  read -r -s -p "Password (input hidden): " password
+  echo
+fi
 
 if [[ -z "${server}" || -z "${username}" || -z "${password}" ]]; then
   echo "Server, username, and password are required."
@@ -108,7 +126,6 @@ fi
 # The supervisor has loaded the credentials into memory. Remove the temporary
 # host file before any login request is sent; nothing is saved in the project.
 cleanup_secret
-unset password
 printf '%s\n' "${helper_token}" >"${TOKEN_FILE}"
 chmod 600 "${TOKEN_FILE}"
 
@@ -138,11 +155,48 @@ if [[ "${response}" == *'"connected":true'* ]]; then
   printf '%s\n' "${server}" >"${SERVER_FILE}"
   printf '%s\n' "${username}" >"${USERNAME_FILE}"
   chmod 600 "${SERVER_FILE}" "${USERNAME_FILE}"
+
+  if [[ "${password_source}" == "manual" && -x "${CREDENTIAL_HELPER}" ]]; then
+    echo
+    echo "Save this password in macOS Keychain?"
+    echo "  1. Require Touch ID each time (recommended)"
+    echo "  2. Load automatically without confirmation"
+    echo "  3. Do not save"
+    read -r -p "Choice [1]: " save_choice
+    save_choice="${save_choice:-1}"
+    credential_mode=""
+    case "${save_choice}" in
+      1) credential_mode="touch-id" ;;
+      2) credential_mode="automatic" ;;
+      3) ;;
+      *) echo "Invalid choice. The password was not saved." ;;
+    esac
+
+    if [[ -n "${credential_mode}" ]]; then
+      if printf '%s' "${password}" | "${CREDENTIAL_HELPER}" save \
+        --server "${server}" \
+        --username "${username}" \
+        --mode "${credential_mode}"; then
+        if [[ "${credential_mode}" == "touch-id" ]]; then
+          echo "Saved the password. Touch ID will be required on the next start."
+        else
+          echo "Saved the password for automatic use."
+        fi
+      else
+        echo "Could not save the password in macOS Keychain." >&2
+      fi
+    fi
+  fi
+  unset password
   echo
   echo "Connected. SOCKS5 proxy: ${HOST_SOCKS}"
 else
+  unset password
   echo
   echo "Not connected. The container remains available for troubleshooting."
+  if [[ "${password_source}" == "keychain" ]]; then
+    echo "If the saved password has changed, run: ./tunlet credentials forget"
+  fi
   echo "Recent logs:"
   container logs -n 60 "${CONTAINER_NAME}" 2>/dev/null || true
   exit 1

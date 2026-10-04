@@ -50,6 +50,8 @@ brew install container
 
 安装包只用于本地构建，完成后会自动删除临时文件。
 
+安装过程还会在本机编译一个很小的钥匙串辅助程序。系统没有 Swift 编译器时，隧道仍可使用，但每次需要手动输入密码；可运行 `xcode-select --install` 安装所需的 Command Line Tools。
+
 ## 安装包从哪里获取
 
 优先使用所在机构的 aTrust 接入页面提供的客户端版本。用浏览器打开平时登录 aTrust 的地址，在客户端下载页面查找 Linux、UOS 或 ARM64 版本。
@@ -85,11 +87,21 @@ SHA-256: c8c0c0add77c21abb72ae912b1ac01c2cad6cf0fc439a4b64545100153b0cf31
 ./tunlet stop
 ```
 
+### 保存密码
+
+第一次手动登录成功后，Tunlet 会询问是否把密码保存到当前 Mac 的登录钥匙串：
+
+- 默认模式在每次启动时请求 Touch ID；没有可用生物识别时回退到系统登录认证。
+- 无感模式直接从钥匙串读取，不显示确认窗口，需要用户明确选择。
+- 也可以选择不保存，继续每次手动输入。
+
+账号、服务器和保存模式可以通过 `./tunlet credentials status` 查看，`./tunlet credentials forget` 会删除 Tunlet 保存的全部密码。短信验证码不会保存。
+
 遇到连接或构建问题时，参阅[原理与排障](docs/troubleshooting.md)。
 
 ## 删除
 
-运行 `./tunlet uninstall`，确认后会删除本项目的容器、镜像、本地账号记录和遗留临时文件。项目源码和 Apple Container 程序会保留，其他容器及镜像不受影响。
+运行 `./tunlet uninstall`，确认后会删除本项目的容器、镜像、本地账号记录、钥匙串密码和遗留临时文件。项目源码和 Apple Container 程序会保留，其他容器、镜像及钥匙串项目不受影响。
 
 需要先查看清理范围，或同时删除 Apple Container 的共享构建器缓存时，可以使用：
 
@@ -109,6 +121,7 @@ Apple Container 使用标准 OCI 镜像，可以通过 Docker Hub、GitHub Conta
 ## 安全说明
 
 - 密码和验证码只通过临时文件传入容器，supervisor 读入后立即删除。
+- 保存的密码位于当前 Mac 的登录钥匙串，不写入项目目录；默认读取前必须通过 Touch ID 或系统认证。
 - SOCKS5 和辅助接口只映射到本机回环地址。
 - 项目不绕过 MFA、授权或访问控制。
 - aTrust 安装包和构建结果不进入 Git 仓库。

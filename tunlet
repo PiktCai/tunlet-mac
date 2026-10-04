@@ -12,6 +12,7 @@ Commands:
   start              Start Tunlet and sign in to aTrust
   status             Show the current status
   stop               Disconnect and stop Tunlet
+  credentials        Inspect or delete saved passwords
   uninstall          Remove Tunlet runtime data
   help               Show this help
 
@@ -100,6 +101,9 @@ case "${command_name}" in
       exit 2
     }
     exec "${ROOT_DIR}/scripts/stop.sh"
+    ;;
+  credentials)
+    exec "${ROOT_DIR}/scripts/credentials.sh" "$@"
     ;;
   uninstall)
     exec "${ROOT_DIR}/scripts/uninstall.sh" "$@"

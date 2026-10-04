@@ -18,3 +18,12 @@ jobs:
         run: |
           rustc --edition=2021 --test scripts/supervisor.rs -o /tmp/tunlet-tests
           /tmp/tunlet-tests
+
+  credentials:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v7
+      - name: Check credential helper
+        run: |
+          swiftc -parse-as-library -typecheck \
+            Sources/TunletCredentials/main.swift

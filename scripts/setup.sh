@@ -45,6 +45,11 @@ for command_name in container curl shasum; do
   }
 done
 
+if ! "${ROOT_DIR}/scripts/build-credentials.sh"; then
+  echo "Warning: Keychain integration could not be installed."
+  echo "Install Xcode Command Line Tools with: xcode-select --install"
+fi
+
 download_official_package() {
   local output="$1"
   echo "Downloading aTrust ${ATRUST_VERSION} ARM64 from Sangfor's official CDN..."

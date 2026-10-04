@@ -5,6 +5,8 @@ ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 STATE_DIR="${ROOT_DIR}/.local"
 CONTAINER_NAME="tunlet"
 IMAGE_NAME="tunlet-runtime:local-arm64"
+CREDENTIAL_HELPER="${STATE_DIR}/bin/tunlet-credentials"
+CREDENTIAL_SERVICE="io.github.piktcai.tunlet.credentials"
 DRY_RUN=0
 ASSUME_YES=0
 INCLUDE_BUILDER=0
@@ -50,6 +52,7 @@ echo "The following items will be removed:"
 echo "  - Container: ${CONTAINER_NAME}"
 echo "  - Image: ${IMAGE_NAME}"
 echo "  - Local state: ${STATE_DIR}"
+echo "  - Passwords saved by Tunlet in macOS Keychain"
 echo "  - Tunlet temporary files"
 if [[ "${INCLUDE_BUILDER}" == 1 ]]; then
   echo "  - Shared Apple Container builder cache"
@@ -115,6 +118,17 @@ if command -v container >/dev/null 2>&1; then
   fi
 else
   echo "Apple Container was not found. Skipping container and image cleanup."
+fi
+
+if [[ -x "${CREDENTIAL_HELPER}" ]]; then
+  if ! "${CREDENTIAL_HELPER}" delete-all; then
+    echo "Warning: Tunlet could not remove its saved Keychain passwords." >&2
+  fi
+elif command -v security >/dev/null 2>&1; then
+  while security delete-generic-password \
+    -s "${CREDENTIAL_SERVICE}" >/dev/null 2>&1; do
+    :
+  done
 fi
 
 if [[ "${STATE_DIR}" == "${ROOT_DIR}/.local" ]]; then
