@@ -20,6 +20,7 @@ const DEFAULT_HELPER_ENV_FILE: &str = "/root/.tunlet/helper.env";
 const DEFAULT_CONNECTED_SIGNAL_FILE: &str = "/root/.tunlet/connected.request";
 const DEFAULT_CORE_AGENT_LOG: &str = "/root/.tunlet/core-agent.log";
 const DEFAULT_SDK_API_LOG: &str = "/home/sangfor/.aTrust/logs/SdkApi.log";
+const DEFAULT_XTUNNEL_LOG: &str = "/root/.aTrust/logs/xtunnel/xtunnel.log";
 const DEFAULT_VPN_ROOT: &str = "/usr/share/sangfor/aTrust";
 const DEFAULT_VPN_BIN: &str = "/usr/share/sangfor/aTrust/resources/bin";
 const DEFAULT_SOCKS_GATE_STATE_FILE: &str = "/root/.tunlet/socks-gate.state";
@@ -35,6 +36,8 @@ const SSL_CTRL_SET_TLSEXT_HOSTNAME: c_int = 55;
 const SIGTERM: c_int = 15;
 const SIGINT: c_int = 2;
 const WNOHANG: c_int = 1;
+const CONNECT_WAIT_ATTEMPTS: usize = 30;
+const CONNECT_STABLE_SAMPLES: u32 = 5;
 
 static TERMINATE: AtomicBool = AtomicBool::new(false);
 static ACTIVE_SOCKS_CLIENTS: AtomicUsize = AtomicUsize::new(0);
@@ -960,6 +963,7 @@ struct Supervisor {
     keepalive_last_run: u64,
     keepalive_last_ok: u64,
     keepalive_last_error: String,
+    xtunnel_ready_log_offset: u64,
 }
 
 impl Supervisor {
@@ -979,6 +983,7 @@ impl Supervisor {
             keepalive_last_run: 0,
             keepalive_last_ok: 0,
             keepalive_last_error: String::new(),
+            xtunnel_ready_log_offset: file_size(DEFAULT_XTUNNEL_LOG),
         })
     }
 
@@ -1128,9 +1133,6 @@ impl Supervisor {
             status.connected = status.tunnel_status == 2 || self.tunnel_device_ready();
             if status.connected && status.tunnel_status == 0 {
                 status.tunnel_status = 2;
-            }
-            if status.connected {
-                let _ = self.ensure_socks_proxy();
             }
         }
         self.sdk_free(out);
@@ -1636,7 +1638,7 @@ impl Supervisor {
         "stopped"
     }
 
-    fn ensure_xtunnel_started(&self) -> &'static str {
+    fn ensure_xtunnel_started(&mut self) -> &'static str {
         if !env_flag_enabled("ATRUST_ON_DEMAND_XTUNNEL", true) {
             return "disabled";
         }
@@ -1647,6 +1649,7 @@ impl Supervisor {
         if !Path::new(&xtunnel).exists() {
             return "failed";
         }
+        self.xtunnel_ready_log_offset = file_size(DEFAULT_XTUNNEL_LOG);
         let null = open_null();
         let mut cmd = Command::new(xtunnel);
         cmd.stdin(null)
@@ -1676,7 +1679,8 @@ impl Supervisor {
         "failed"
     }
 
-    fn stop_xtunnel(&self) -> &'static str {
+    fn stop_xtunnel(&mut self) -> &'static str {
+        self.xtunnel_ready_log_offset = file_size(DEFAULT_XTUNNEL_LOG);
         if !env_flag_enabled("ATRUST_STOP_XTUNNEL_ON_DISCONNECT", true) {
             return "disabled";
         }
@@ -1797,19 +1801,35 @@ impl Supervisor {
     }
 
     fn wait_for_connected(&mut self) -> Status {
-        for _ in 0..12 {
-            let current = self.sdk_status();
-            if current.connected {
+        let mut stable_samples = 0u32;
+        for attempt in 0..CONNECT_WAIT_ATTEMPTS {
+            let mut current = self.sdk_status();
+            if current.connected && self.tunnel_device_ready() {
+                stable_samples = stable_samples.saturating_add(1);
+            } else {
+                stable_samples = 0;
+            }
+            if transport_is_ready(
+                current.connected,
+                self.xtunnel_transport_ready(),
+                stable_samples,
+            ) {
                 dedupe_atrust_dns_rule();
+                return current;
+            }
+            if attempt + 1 == CONNECT_WAIT_ATTEMPTS {
+                current.connected = false;
                 return current;
             }
             thread::sleep(Duration::from_secs(1));
         }
-        let status = self.sdk_status();
-        if status.connected {
-            dedupe_atrust_dns_rule();
-        }
-        status
+        Status::idle(self.pending_sms())
+    }
+
+    fn xtunnel_transport_ready(&self) -> bool {
+        read_file_since(DEFAULT_XTUNNEL_LOG, self.xtunnel_ready_log_offset, 1024 * 1024)
+            .map(|content| xtunnel_log_reports_ready(&content))
+            .unwrap_or(false)
     }
 
     fn wait_for_core_ready(&mut self) {
@@ -2524,6 +2544,28 @@ fn file_size(path: &str) -> u64 {
     fs::metadata(path).map(|m| m.len()).unwrap_or(0)
 }
 
+fn read_file_since(path: &str, offset: u64, limit: u64) -> io::Result<String> {
+    use std::io::{Seek, SeekFrom};
+
+    let mut file = File::open(path)?;
+    file.seek(SeekFrom::Start(offset))?;
+    let mut content = String::new();
+    file.take(limit).read_to_string(&mut content)?;
+    Ok(content)
+}
+
+fn xtunnel_log_reports_ready(content: &str) -> bool {
+    content.lines().any(|line| {
+        line.contains("nodeGroup")
+            && line.contains("\"state\":\"success\"")
+            && (line.contains("choose current line") || line.contains("[NGST]"))
+    })
+}
+
+fn transport_is_ready(sdk_connected: bool, xtunnel_ready: bool, stable_samples: u32) -> bool {
+    sdk_connected && (xtunnel_ready || stable_samples >= CONNECT_STABLE_SAMPLES)
+}
+
 fn sms_log_success_in_file_since(path: &str, offset: u64) -> bool {
     let mut file = match File::open(path) {
         Ok(file) => file,
@@ -3169,8 +3211,27 @@ fn reap_children() {
 mod tests {
     use super::{
         build_dns_a_query, parse_dns_a_response, parse_keepalive_target, socks_client_allowed,
-        validate_http_response, SocksDnsFallback,
+        transport_is_ready, validate_http_response, xtunnel_log_reports_ready, SocksDnsFallback,
     };
+
+    #[test]
+    fn connection_waits_for_xtunnel_transport() {
+        assert!(!transport_is_ready(true, false, 1));
+        assert!(!transport_is_ready(true, false, 4));
+        assert!(transport_is_ready(true, false, 5));
+        assert!(transport_is_ready(true, true, 1));
+        assert!(!transport_is_ready(false, true, 5));
+    }
+
+    #[test]
+    fn xtunnel_ready_log_requires_a_selected_line() {
+        assert!(!xtunnel_log_reports_ready(
+            r#"nodeGroup:{"state":"selectline:no current line"}"#
+        ));
+        assert!(xtunnel_log_reports_ready(
+            r#"choose current line 59.172.178.124:441 nodeGroup:{"state":"success"}"#
+        ));
+    }
 
     #[test]
     fn socks_capacity_accepts_normal_clients_below_limit() {
